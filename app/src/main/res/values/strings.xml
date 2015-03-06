@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <string name="app_name">Mappad</string>
+    <string name="hello_world">Hello world!</string>
+
+    <string name="list_title"> Mappad</string>
+    <string name="list_no_items">Press Add Button to Add New Note</string>
+
+    <string name="edit_title"> Editing</string>
+
+</resources>
