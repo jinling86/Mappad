@@ -3,6 +3,7 @@ package ca.uottawa.ljin027.mappad;
 import android.content.Context;
 import android.util.Log;
 
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -29,12 +30,15 @@ public class NoteManager {
     private Context mContext;
 
     private ArrayList<NoteItem> mAllNotes;
+    private long mTimestamp;
 
     public NoteManager(Context context) {
         mContext = context;
         read();
-        if(mAllNotes == null)
+        if(mAllNotes == null) {
             mAllNotes = new ArrayList<NoteItem>();
+            mTimestamp = 0;
+        }
         if(EXT_NAME == null) {
             EXT_NAME = mContext.getFilesDir() + "/"+ FILE_NAME;
         }
@@ -96,6 +100,8 @@ public class NoteManager {
         try {
             FileOutputStream fos = mContext.openFileOutput(FILE_NAME, Context.MODE_PRIVATE);
             ObjectOutputStream oos = new ObjectOutputStream(fos);
+            mTimestamp = System.currentTimeMillis();
+            oos.writeLong(mTimestamp);
             oos.writeObject(mAllNotes);
             oos.close();
             Log.d(TAG, "List item saved");
@@ -109,6 +115,7 @@ public class NoteManager {
         try {
             FileInputStream fis = mContext.openFileInput(FILE_NAME);
             ObjectInputStream ois = new ObjectInputStream(fis);
+            mTimestamp = ois.readLong();
             mAllNotes = (ArrayList<NoteItem>)ois.readObject();
             ois.close();
             if(mAllNotes != null) {
@@ -126,18 +133,21 @@ public class NoteManager {
         try {
             FileInputStream fis = mContext.openFileInput(TMP_FILE_NAME);
             ObjectInputStream ois = new ObjectInputStream(fis);
+            long cloudTimestamp = ois.readLong();
             ArrayList<NoteItem> cloudNotes = (ArrayList<NoteItem>)ois.readObject();
             ois.close();
 
-            if(cloudNotes.size() != mAllNotes.size()) {
+            if(cloudTimestamp > mTimestamp) {
+                File localFile = new File(EXT_NAME);
+                localFile.deleteOnExit();
+                File tmpFile = new File(TMP_NAME);
+                if(!tmpFile.renameTo(localFile))
+                    Log.d(TAG,"File rename failed!");
+
+                mTimestamp = cloudTimestamp;
+                mAllNotes = cloudNotes;
 
                 return true;
-            }
-            for (int i = 0; i < cloudNotes.size(); i++) {
-                if(cloudNotes.get(i).mTitle.compareTo(mAllNotes.get(i).mTitle) != 0) {
-
-                    return true;
-                }
             }
 
             return false;

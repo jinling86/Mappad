@@ -68,8 +68,8 @@ public class AWSService extends IntentService {
             mDownload.addProgressListener(new ProgressListener() {
                 @Override
                 public void progressChanged(ProgressEvent event) {
-                    Log.d(TAG, "Dowdloaded!");
                     if (event.getEventCode() == ProgressEvent.COMPLETED_EVENT_CODE) {
+                        Log.d(TAG, "Downloaded!");
                         Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
                         mediaScanIntent.putExtra(ACTION, ACTION_DOWNLOADED);
                         mContext.sendBroadcast(mediaScanIntent);

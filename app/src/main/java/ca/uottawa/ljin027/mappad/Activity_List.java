@@ -69,7 +69,8 @@ public class Activity_List extends ActionBarActivity {
                 if (action == AWSService.ACTION_UPLOADED) {
                     Toast.makeText(context, "Synchronized", Toast.LENGTH_LONG).show();
                 } else if (action == AWSService.ACTION_DOWNLOADED) {
-                    mNotes.updateFromTmpFile();
+                    if(mNotes.updateFromTmpFile())
+                        fillList();
                 }
             }
         }, intentFilter);
