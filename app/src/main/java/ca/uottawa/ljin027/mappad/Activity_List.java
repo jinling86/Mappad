@@ -13,6 +13,7 @@ import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.TextView;
@@ -26,6 +27,7 @@ public class Activity_List extends ActionBarActivity {
 
     private static final int DELETE_ID = Menu.FIRST;
     private static final int ACTIVITY_EDIT = 0;
+    private static final int ACTIVITY_MAP = 1;
 
     private NoteManager mNotes = null;
     private ListView mView_NoteList = null;
@@ -74,6 +76,15 @@ public class Activity_List extends ActionBarActivity {
                 }
             }
         }, intentFilter);
+
+        Button mapButton = (Button) findViewById(R.id.button_ShowMap);
+        mapButton.setOnClickListener(new Button.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                Intent intent = new Intent(mActivity_List, Activity_Map.class);
+                startActivityForResult(intent, ACTIVITY_MAP);
+            }
+        });
 
         // Recover the saved notes
         mNotes = new NoteManager(this);
@@ -152,13 +163,15 @@ public class Activity_List extends ActionBarActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
         super.onActivityResult(requestCode, resultCode, intent);
-        Bundle extras = intent.getExtras();
-        int position = extras.getInt(NoteManager.INDEX);
-        String title = extras.getString(NoteManager.TITLE);
-        String content = extras.getString(NoteManager.CONTENT);
-        mNotes.setNote(position, title, content);
-        AWSManager.upload(this, mNotes.EXT_NAME);
-        fillList();
+        if(requestCode == ACTIVITY_EDIT) {
+            Bundle extras = intent.getExtras();
+            int position = extras.getInt(NoteManager.INDEX);
+            String title = extras.getString(NoteManager.TITLE);
+            String content = extras.getString(NoteManager.CONTENT);
+            mNotes.setNote(position, title, content);
+            AWSManager.upload(this, mNotes.EXT_NAME);
+            fillList();
+        }
     }
 
 }
