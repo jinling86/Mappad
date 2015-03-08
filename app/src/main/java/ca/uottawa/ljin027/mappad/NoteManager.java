@@ -19,13 +19,21 @@ public class NoteManager {
     public static final String INDEX = "index";
     public static final String TITLE = "title";
     public static final String CONTENT = "content";
-    public static final int NEW_NODE_POSITION = -1;
+    public static final String LATITUDE = "latitude";
+    public static final String LONGITUDE = "longitude";
+    public static final String DEFAULT_TITLE = "No title";
 
-    private final String TAG = "<<<<< Note Manager >>>>>";
-    private final String FILE_NAME = "notes_file";
-    private final String TMP_FILE_NAME = "notes_file_tmp";
-    public static String EXT_NAME = null;
-    public static String TMP_NAME = null;
+    public static final int NEW_NODE_POSITION = -1;
+    public static final boolean NEED_SYNCHRONIZE = true;
+    public static final boolean DO_NOT_NEED_SYNCHRONIZE = false;
+    public static final boolean NEED_UPDATE = true;
+    public static final boolean DO_NOT_NEED_UPDATE = false;
+
+    private static String TAG = "<<<<< Note Manager >>>>>";
+    private static String FILE_NAME = "notes_file";
+    private static String TMP_FILE_NAME = "notes_file_tmp";
+    public static String EXT_FILE_NAME = null;
+    public static String EXT_TMP_FILE_NAME = null;
 
     private Context mContext;
 
@@ -39,30 +47,58 @@ public class NoteManager {
             mAllNotes = new ArrayList<NoteItem>();
             mTimestamp = 0;
         }
-        if(EXT_NAME == null) {
-            EXT_NAME = mContext.getFilesDir() + "/"+ FILE_NAME;
+        if(EXT_FILE_NAME == null) {
+            EXT_FILE_NAME = mContext.getFilesDir() + "/"+ FILE_NAME;
         }
-        if(TMP_NAME == null) {
-            TMP_NAME = mContext.getFilesDir() + "/"+ FILE_NAME + "_tmp";
+        if(EXT_TMP_FILE_NAME == null) {
+            EXT_TMP_FILE_NAME = mContext.getFilesDir() + "/"+ TMP_FILE_NAME;
         }
     }
 
-    public void setNote(int index, String title, String content) {
+    public boolean setNote(int index, String title, String content, double latitude, double longitude) {
         if(index < mAllNotes.size()) {
-            mAllNotes.get(index).mTitle = title;
-            mAllNotes.get(index).mContent = content;
-        } else if(index == mAllNotes.size()) {
-            addNote(title, content);
+            boolean contentChanged = false;
+            if(title == null || title.isEmpty()) {
+                title = DEFAULT_TITLE;
+            }
+            if(mAllNotes.get(index).mTitle.compareTo(title) != 0) {
+                contentChanged = true;
+                mAllNotes.get(index).mTitle = title;
+            }
+            if(mAllNotes.get(index).mContent.compareTo(content) != 0) {
+                contentChanged = true;
+                mAllNotes.get(index).mContent = title;
+            }
+            if(!mAllNotes.get(index).mLatitude.equals(latitude)) {
+                contentChanged = true;
+                mAllNotes.get(index).mLatitude = latitude;
+            }
+            if(!mAllNotes.get(index).mLongitude.equals(longitude)) {
+                contentChanged = true;
+                mAllNotes.get(index).mLongitude = longitude;
+            }
+            if(contentChanged) {
+                save();
+                return NEED_SYNCHRONIZE;
+            } else {
+                return DO_NOT_NEED_SYNCHRONIZE;
+            }
+
+        } else {
+            Log.d(TAG, "Error, trying to write an un-exist note!");
         }
-        save();
+        return DO_NOT_NEED_SYNCHRONIZE;
     }
 
-    public int addNote(String title, String content) {
+    public int addNote(String title, String content, double latitude, double longitude) {
         NoteItem newNote = new NoteItem();
+        if(title == null || title.isEmpty()) {
+            title = DEFAULT_TITLE;
+        }
         newNote.mTitle = title;
         newNote.mContent = content;
-        newNote.mLongitude = "";
-        newNote.mLatitude = "";
+        newNote.mLongitude = longitude;
+        newNote.mLatitude = latitude;
         mAllNotes.add(newNote);
         return mAllNotes.size() - 1;
     }
@@ -80,6 +116,22 @@ public class NoteManager {
             return mAllNotes.get(index).mContent;
         } else {
             return null;
+        }
+    }
+
+    public double getLatitude(int index) {
+        if(index < mAllNotes.size()) {
+            return mAllNotes.get(index).mLatitude;
+        } else {
+            return 0.0;
+        }
+    }
+
+    public double getLongitude(int index) {
+        if(index < mAllNotes.size()) {
+            return mAllNotes.get(index).mLongitude;
+        } else {
+            return 0.0;
         }
     }
 
@@ -138,24 +190,24 @@ public class NoteManager {
             ois.close();
 
             if(cloudTimestamp > mTimestamp) {
-                File localFile = new File(EXT_NAME);
+                File localFile = new File(EXT_FILE_NAME);
                 localFile.deleteOnExit();
-                File tmpFile = new File(TMP_NAME);
+                File tmpFile = new File(EXT_TMP_FILE_NAME);
                 if(!tmpFile.renameTo(localFile))
                     Log.d(TAG,"File rename failed!");
 
                 mTimestamp = cloudTimestamp;
                 mAllNotes = cloudNotes;
 
-                return true;
+                return NEED_UPDATE;
             }
 
-            return false;
+            return DO_NOT_NEED_UPDATE;
 
         } catch( ClassNotFoundException | IOException | ClassCastException e ) {
             Log.d(TAG, "Recovering cloud notes failed!");
             e.printStackTrace();
         }
-        return false;
+        return DO_NOT_NEED_UPDATE;
     }
 }

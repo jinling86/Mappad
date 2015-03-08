@@ -8,6 +8,6 @@ import java.io.Serializable;
 public class NoteItem implements Serializable{
     public String mTitle;
     public String mContent;
-    public String mLongitude;
-    public String mLatitude;
+    public Double mLongitude;
+    public Double mLatitude;
 }

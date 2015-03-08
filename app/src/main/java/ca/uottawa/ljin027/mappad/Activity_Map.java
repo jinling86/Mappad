@@ -4,6 +4,7 @@ import android.app.FragmentManager;
 import android.app.FragmentTransaction;
 import android.content.Intent;
 import android.os.Bundle;
+import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -12,6 +13,9 @@ import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.model.BitmapDescriptor;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
@@ -20,12 +24,24 @@ import com.google.android.gms.maps.model.MarkerOptions;
  */
 public class Activity_Map extends ActionBarActivity implements OnMapReadyCallback {
 
+    public static final LatLng OTTAWA_COORDINATES = new LatLng(45.4214, -75.6919);
+    public static final int DEFAULT_CAMERA_ZOOM = 15;
     private final String TAG = "<<<<< Activity Map >>>>>";
+
+    private NoteManager mNotes = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
         setContentView(R.layout.activity_map);
+        // Set the action bar style
+        ActionBar actionBar = getSupportActionBar();
+        actionBar.setDisplayOptions(ActionBar.DISPLAY_SHOW_HOME | ActionBar.DISPLAY_SHOW_TITLE);
+        actionBar.setTitle(R.string.map_title);
+        actionBar.setIcon(R.drawable.ic_pad);
+
+        mNotes = new NoteManager(this);
 
         FragmentManager fragmentManager = getFragmentManager();
         FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
@@ -38,15 +54,23 @@ public class Activity_Map extends ActionBarActivity implements OnMapReadyCallbac
 
     @Override
     public void onMapReady(GoogleMap map) {
-        LatLng ottawa = new LatLng(-33.867, 151.206);
+        final BitmapDescriptor markerIcon = BitmapDescriptorFactory.fromResource(R.drawable.ic_location);
 
+        map.getUiSettings().setZoomGesturesEnabled(true);
         map.setMyLocationEnabled(true);
-        map.moveCamera(CameraUpdateFactory.newLatLngZoom(ottawa, 13));
 
-        map.addMarker(new MarkerOptions()
-                .title("Sydney")
-                .snippet("The most populous city in Australia.")
-                .position(ottawa));
+        if(mNotes != null && mNotes.size() != 0) {
+            for(int i = 0; i < mNotes.size(); i++) {
+                MarkerOptions staticMarker = new MarkerOptions()
+                    .title(mNotes.getTitle(i))
+                    .snippet(mNotes.getContent(i))
+                    .icon(markerIcon)
+                    .position(new LatLng(mNotes.getLatitude(i), mNotes.getLongitude(i)));
+                map.addMarker(staticMarker);
+            }
+            LatLng firstLocation = new LatLng(mNotes.getLatitude(0), mNotes.getLongitude(0));
+            map.moveCamera(CameraUpdateFactory.newLatLngZoom(firstLocation, DEFAULT_CAMERA_ZOOM));
+        }
     }
 
     @Override

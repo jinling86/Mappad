@@ -32,8 +32,8 @@ public class AWSService extends IntentService {
     private static final String BUCKET_NAME = "ca.uottawa.ljin027.mappad";
     private static final String KEY_NAME = "notes";
     private static final String TAG = "<<<<< AWS Service >>>>>";
-    private static final String ACCESS_KEY = "";
-    private static final String SECRET_ACCESS_KEY = "";
+    private static final String ACCESS_KEY = "AKIAJWAGGRMXROXFWDEQ";
+    private static final String SECRET_ACCESS_KEY = "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";
 
 
     private TransferManager mTransferManager;

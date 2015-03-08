@@ -4,69 +4,81 @@
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:descendantFocusability="beforeDescendants"
+    android:focusableInTouchMode="true" >
 
     <EditText android:id="@+id/note_title"
         android:layout_width="match_parent"
-        android:layout_height="64dp"
+        android:layout_height="48dp"
         android:layout_margin="8dp"
+        android:singleLine="true"
         android:hint="Enter Title Here"
-        android:maxLength="24"/>
+        android:maxLength="24" />
+
+    <TableLayout
+        android:layout_width="match_parent"
+        android:layout_height="32dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginRight="8dp"
+        android:gravity="center"
+        android:stretchColumns="0,2">
+
+        <TableRow
+            android:layout_width="fill_parent"
+            android:layout_height="fill_parent">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:id="@+id/textView_Longitude"
+                android:text="longitude"
+                android:textColor="@color/coordinates"
+                android:textSize="18sp"
+                android:layout_gravity="center"
+                android:gravity="center"/>
+
+            <ImageButton
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:id="@+id/button_Update"
+                android:background="@drawable/ic_update" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:id="@+id/textView_Latitude"
+                android:text="latitude"
+                android:textColor="@color/coordinates"
+                android:textSize="18sp"
+                android:layout_gravity="center"
+                android:gravity="center" />
+        </TableRow>
+    </TableLayout>
 
     <LinearLayout
-        android:orientation="horizontal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="8dp"
-        android:layout_marginRight="8dp">
-
-        <TextView
-            android:layout_width="100dp"
-            android:layout_height="wrap_content"
-            android:text="Latitude:"
-            android:id="@+id/textView_Latitude"
-            android:textColor="@color/black"
-            android:textSize="18sp" />
-
-        <EditText
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="number"
-            android:ems="10"
-            android:id="@+id/latitude"
-            android:layout_weight="1" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:orientation="horizontal"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginLeft="8dp"
-        android:layout_marginRight="8dp">
-
-        <TextView
-            android:layout_width="100dp"
-            android:layout_height="wrap_content"
-            android:text="Longitude:"
-            android:id="@+id/textView_Longitude"
-            android:textColor="@color/black"
-            android:textSize="18sp" />
-
-        <EditText
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:inputType="number"
-            android:ems="10"
-            android:id="@+id/longitude"
-            android:layout_weight="1" />
-    </LinearLayout>
-
-    <EditText android:id="@+id/note_content"
+        android:orientation="vertical"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:layout_margin="8dp"
-        android:scrollbars="vertical"
-        android:hint="Composite From Here"
-        android:gravity="left|top"/>
+        android:layout_margin="8dp" >
+
+        <EditText android:id="@+id/note_content"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="3"
+            android:scrollbars="vertical"
+            android:hint="Composite From Here"
+            android:gravity="left|top" />
+
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_gravity="center_horizontal"
+            android:id="@+id/locating">
+
+        </FrameLayout>
+
+    </LinearLayout>
 
 </LinearLayout>
