@@ -33,20 +33,21 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     private final String TAG = "<<<<< Activity Edit >>>>>";
 
     private EditText mView_Title;
-    private EditText mView_Content;
+    //private EditText mView_Content;
     private TextView mView_Latitude;
     private TextView mView_Longitude;
+    private TextView mView_RefLatitude;
+    private TextView mView_RefLongitude;
     private ImageButton mButton_Update;
 
     private boolean mControlledFinish = false;
     private int mPosition;
     private String mTitle;
-    private String mContent;
+    private final String  mContent = "";
     private double mLatitude;
     private double mLongitude;
     private double mNewLatitude;
     private double mNewLongitude;
-    MapFragment mMapFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,12 +66,13 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         fragmentTransaction.add(R.id.locating, mapFragment);
         fragmentTransaction.commit();
         mapFragment.getMapAsync(this);
-        mMapFragment = mapFragment;
 
         mView_Title = (EditText) findViewById(R.id.note_title);
-        mView_Content = (EditText) findViewById(R.id.note_content);
+        //mView_Content = (EditText) findViewById(R.id.note_content);
         mView_Latitude = (TextView) findViewById(R.id.textView_Latitude);
         mView_Longitude = (TextView) findViewById(R.id.textView_Longitude);
+        mView_RefLatitude = (TextView) findViewById(R.id.textView_RefLatitude);
+        mView_RefLongitude = (TextView) findViewById(R.id.textView_RefLongitude);
         mButton_Update = (ImageButton) findViewById(R.id.button_Update);
         mButton_Update.setOnClickListener(new Button.OnClickListener() {
             @Override
@@ -85,7 +87,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         if (extras != null) {
             mPosition = extras.getInt(NoteManager.INDEX);
             mTitle = extras.getString(NoteManager.TITLE);
-            mContent = extras.getString(NoteManager.CONTENT);
+            //mContent = extras.getString(NoteManager.CONTENT);
             mLatitude = extras.getDouble(NoteManager.LATITUDE);
             mLongitude = extras.getDouble(NoteManager.LONGITUDE);
         } else {
@@ -106,22 +108,35 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
             if(mTitle.compareTo(NoteManager.DEFAULT_TITLE) == 0)
                 mTitle = "";
             mView_Title.setText(mTitle);
-            mView_Content.setText(mContent);
+            //mView_Content.setText(mContent);
             fillCoordinates();
         }
     }
 
+    private String getLatitude(double latitude) {
+        if(latitude > 0) {
+            return String.format("%.5f ° N", latitude);
+        } else {
+            return String.format("%.5f ° S", latitude);
+        }
+    }
+
+    private String getLongitude(double longitude) {
+        if(longitude > 0) {
+            return String.format("%.5f ° E", longitude);
+        } else {
+            return String.format("%.5f ° W", longitude);
+        }
+    }
+
     private void fillCoordinates() {
-        if(mLatitude > 0) {
-            mView_Latitude.setText(String.format("%.4f ° N", mLatitude));
-        } else {
-            mView_Latitude.setText(String.format("%.4f ° S", mLatitude));
-        }
-        if(mLongitude > 0) {
-            mView_Longitude.setText(String.format("%.4f ° E", mLongitude));
-        } else {
-            mView_Longitude.setText(String.format("%.4f ° W", mLongitude));
-        }
+        mView_Latitude.setText(getLatitude(mLatitude));
+        mView_Longitude.setText(getLongitude(mLongitude));
+    }
+
+    private void fillRefCoordinates() {
+        mView_RefLatitude.setText(getLatitude(mNewLatitude));
+        mView_RefLongitude.setText(getLongitude(mNewLongitude));
     }
 
     @Override
@@ -160,12 +175,11 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         mIntent.putExtras(makeBundle());
         setResult(RESULT_OK, mIntent);
         mControlledFinish = true;
-
     }
 
     private void readInput() {
         mTitle = mView_Title.getText().toString();
-        mContent = mView_Content.getText().toString();
+        //mContent = mView_Content.getText().toString();
     }
 
     @Override
@@ -179,10 +193,11 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         final BitmapDescriptor locatingIcon = BitmapDescriptorFactory.fromResource(R.drawable.ic_locating);
         mMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
             public void onCameraChange(CameraPosition arg0) {
-            mMap.clear();
-            mMap.addMarker(new MarkerOptions().position(arg0.target).icon(locatingIcon));
-            mNewLatitude = arg0.target.latitude;
-            mNewLongitude = arg0.target.longitude;
+                mMap.clear();
+                mMap.addMarker(new MarkerOptions().position(arg0.target).icon(locatingIcon));
+                mNewLatitude = arg0.target.latitude;
+                mNewLongitude = arg0.target.longitude;
+                fillRefCoordinates();
             }
         });
     }
@@ -209,6 +224,5 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
                 AWSManager.upload();
             }
         }
-
     }
 }

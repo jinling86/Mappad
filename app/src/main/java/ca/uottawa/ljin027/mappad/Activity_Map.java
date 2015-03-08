@@ -65,13 +65,13 @@ public class Activity_Map extends ActionBarActivity implements OnMapReadyCallbac
             for(int i = 0; i < mNotes.size(); i++) {
                 MarkerOptions staticMarker = new MarkerOptions()
                     .title(mNotes.getTitle(i))
-                    .snippet(mNotes.getContent(i))
+                    //.snippet(mNotes.getContent(i))
                     .icon(markerIcon)
                     .position(new LatLng(mNotes.getLatitude(i), mNotes.getLongitude(i)));
                 map.addMarker(staticMarker);
             }
             LatLng firstLocation = new LatLng(mNotes.getLatitude(0), mNotes.getLongitude(0));
-            map.moveCamera(CameraUpdateFactory.newLatLngZoom(firstLocation, DEFAULT_CAMERA_ZOOM));
+            map.moveCamera(CameraUpdateFactory.newLatLngZoom(firstLocation, DEFAULT_CAMERA_ZOOM-4));
         } else {
             map.moveCamera(CameraUpdateFactory.newLatLngZoom(OTTAWA_COORDINATES, DEFAULT_CAMERA_ZOOM));
         }

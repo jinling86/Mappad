@@ -40,8 +40,12 @@ public class Activity_List extends ActionBarActivity {
     private final Activity_List mActivity_List = this;
     private GoogleApiClient mGoogleApiClient = null;
     private Location mLastLocation = null;
+    private AWSMessageReceiver mBroadcastReceiver = null;
+
     private boolean mPendingUpload = false;
     private boolean mPendingLocating = false;
+    private boolean mIsVisible = true;
+
 
     private final String TAG = "<<<<< Activity List >>>>>";
 
@@ -56,8 +60,6 @@ public class Activity_List extends ActionBarActivity {
         actionBar.setTitle(R.string.list_title);
         actionBar.setIcon(R.drawable.ic_pad);
 
-        AWSManager.setContext(this);
-
         // Store the handle
         mView_NoteList = (ListView)findViewById(R.id.note_list);
         mView_NoteHint = (TextView)findViewById(R.id.note_hint);
@@ -71,23 +73,10 @@ public class Activity_List extends ActionBarActivity {
             }
         });
 
+        AWSManager.setContext(this);
+        mBroadcastReceiver = new AWSMessageReceiver();
         IntentFilter intentFilter = new IntentFilter(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-        this.registerReceiver(new BroadcastReceiver() {
-            @Override
-            public void onReceive(Context context, Intent intent) {
-                int action = intent.getIntExtra(AWSService.ACTION, AWSService.ACTION_FAILED);
-                if (action == AWSService.ACTION_UPLOADED) {
-                    Log.d(TAG, "Response from AWS upload service");
-                    toast("Uploaded");
-                } else if (action == AWSService.ACTION_DOWNLOADED) {
-                    Log.d(TAG, "Response from AWS download service");
-                    toast("Synchronized");
-                    if(mNotes.updateFromTmpFile() == NoteManager.NEED_UPDATE) {
-                        fillList();
-                    }
-                }
-            }
-        }, intentFilter);
+        this.registerReceiver(mBroadcastReceiver, intentFilter);
 
         Button mapButton = (Button) findViewById(R.id.button_ShowMap);
         mapButton.setOnClickListener(new Button.OnClickListener() {
@@ -110,7 +99,7 @@ public class Activity_List extends ActionBarActivity {
             .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
                 @Override
                 public void onConnected(Bundle bundle) {
-                    if(mPendingLocating == false) {
+                    if(!mPendingLocating) {
                         mPendingLocating = true;
                         toast("Location confirmed");
                     }
@@ -138,6 +127,7 @@ public class Activity_List extends ActionBarActivity {
     @Override
     protected void onStart() {
         super.onStart();
+        mIsVisible = true;
         if(mGoogleApiClient != null) {
             if(!mGoogleApiClient.isConnected())
                 mGoogleApiClient.connect();
@@ -147,6 +137,7 @@ public class Activity_List extends ActionBarActivity {
     @Override
     protected void onStop() {
         super.onStop();
+        mIsVisible = false;
         if(mGoogleApiClient != null) {
             if (mGoogleApiClient.isConnected()) {
                 mGoogleApiClient.disconnect();
@@ -267,7 +258,32 @@ public class Activity_List extends ActionBarActivity {
         return bundle;
     }
 
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(mBroadcastReceiver);
+    }
+
     void toast(String message) {
-        Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        if(mIsVisible)
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+    }
+
+    class AWSMessageReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            switch (intent.getIntExtra(AWSService.ACTION, AWSService.ACTION_FAILED)) {
+                case AWSService.ACTION_UPLOADED:
+                    Log.d(TAG, "Response from AWS upload service");
+                    toast("Uploaded");
+                    break;
+                case AWSService.ACTION_DOWNLOADED:
+                    Log.d(TAG, "Response from AWS download service");
+                    toast("Synchronized");
+                    if(mNotes.updateFromTmpFile() == NoteManager.NEED_UPDATE) {
+                        fillList();
+                    }
+            }
+        }
     }
 }

@@ -24,13 +24,12 @@
     </RelativeLayout>
 
     <Button
-        android:layout_width="match_parent"
+        android:layout_width="200dp"
         android:layout_height="wrap_content"
         android:text="Show Maps"
         android:id="@+id/button_ShowMap"
         android:layout_gravity="center_horizontal"
         android:layout_alignParentBottom="true"
         android:layout_centerInParent="true"/>
-
 
 </RelativeLayout>
