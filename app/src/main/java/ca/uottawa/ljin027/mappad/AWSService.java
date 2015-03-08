@@ -7,7 +7,6 @@ import android.util.Log;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.auth.DefaultAWSCredentialsProviderChain;
 import com.amazonaws.mobileconnectors.s3.transfermanager.Download;
 import com.amazonaws.mobileconnectors.s3.transfermanager.TransferManager;
 import com.amazonaws.mobileconnectors.s3.transfermanager.Upload;
@@ -15,20 +14,11 @@ import com.amazonaws.services.s3.model.ProgressEvent;
 import com.amazonaws.services.s3.model.ProgressListener;
 
 import java.io.File;
-import java.util.Locale;
-import java.util.Properties;
 
 /**
  * Created by Ling Jin on 05/03/2015.
  */
 public class AWSService extends IntentService {
-
-    public static final String FILE_NAME = "file_name";
-    public static final String ACTION = "action";
-    public static final int ACTION_UPLOADED = 0;
-    public static final int ACTION_DOWNLOADED = 1;
-    public static final int ACTION_FAILED = 2;
-
     private static final String BUCKET_NAME = "ca.uottawa.ljin027.mappad";
     private static final String KEY_NAME = "notes";
     private static final String TAG = "<<<<< AWS Service >>>>>";
@@ -36,8 +26,8 @@ public class AWSService extends IntentService {
     private static final String SECRET_ACCESS_KEY = "EATdaQkIEqgB05pfSMkraV4j/dDkExen626S1d3z";
 
 
-    private TransferManager mTransferManager;
-    private IntentService mContext;
+    private TransferManager mTransferManager = null;
+    private IntentService mContext = null;
 
     public AWSService() {
         super(TAG);
@@ -52,12 +42,12 @@ public class AWSService extends IntentService {
     @Override
     public void onHandleIntent(Intent intent) {
         if (intent != null && intent.getAction() != null) {
-            if (intent.getAction().equals(Intent.ACTION_GET_CONTENT) &&
-                    intent.getStringExtra(FILE_NAME) != null) {
-                download(intent.getStringExtra(FILE_NAME));
-            } else if (intent.getAction().equals(Intent.ACTION_SEND) &&
-                    intent.getStringExtra(FILE_NAME) != null) {
-                upload(intent.getStringExtra(FILE_NAME));
+            if (intent.getAction().equals(AWSManager.INTENT_DOWNLOAD) &&
+                    intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME) != null) {
+                download(intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME));
+            } else if (intent.getAction().equals(AWSManager.INTENT_UPLOAD) &&
+                    intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME) != null) {
+                upload(intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME));
             }
         }
     }
@@ -70,9 +60,7 @@ public class AWSService extends IntentService {
                 public void progressChanged(ProgressEvent event) {
                     if (event.getEventCode() == ProgressEvent.COMPLETED_EVENT_CODE) {
                         Log.d(TAG, "Downloaded!");
-                        Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-                        mediaScanIntent.putExtra(ACTION, ACTION_DOWNLOADED);
-                        mContext.sendBroadcast(mediaScanIntent);
+                        sendResult(AWSManager.AWS_DOWNLOADED);
                     }
                 }
             });
@@ -84,11 +72,13 @@ public class AWSService extends IntentService {
             Log.d(TAG, "AWS Error Code:   " + ase.getErrorCode());
             Log.d(TAG, "Error Type:       " + ase.getErrorType());
             Log.d(TAG, "Request ID:       " + ase.getRequestId());
+            sendResult(AWSManager.AWS_DOWNLOAD_FAILED);
         } catch ( AmazonClientException ace ) {
             Log.d(TAG, "Caught an AmazonClientException, which means the client encountered "
                     + "a serious internal problem while trying to communicate with S3, "
                     + "such as not being able to access the network.");
             Log.d(TAG, "Error Message: " + ace.getMessage());
+            sendResult(AWSManager.AWS_DOWNLOAD_FAILED);
         }
     }
 
@@ -100,9 +90,7 @@ public class AWSService extends IntentService {
                 public void progressChanged(ProgressEvent event) {
                     if (event.getEventCode() == ProgressEvent.COMPLETED_EVENT_CODE) {
                         Log.d(TAG, "Uploaded!");
-                        Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
-                        mediaScanIntent.putExtra(ACTION, ACTION_UPLOADED);
-                        mContext.sendBroadcast(mediaScanIntent);
+                        sendResult(AWSManager.AWS_UPLOADED);
                     }
                 }
             });
@@ -114,12 +102,19 @@ public class AWSService extends IntentService {
             Log.d(TAG, "AWS Error Code:   " + ase.getErrorCode());
             Log.d(TAG, "Error Type:       " + ase.getErrorType());
             Log.d(TAG, "Request ID:       " + ase.getRequestId());
+            sendResult(AWSManager.AWS_UPLOAD_FAILED);
         } catch ( AmazonClientException ace ) {
             Log.d(TAG, "Caught an AmazonClientException, which means the client encountered "
                     + "a serious internal problem while trying to communicate with S3, "
                     + "such as not being able to access the network.");
             Log.d(TAG, "Error Message: " + ace.getMessage());
+            sendResult(AWSManager.AWS_UPLOAD_FAILED);
         }
+    }
 
+    private void sendResult(int result) {
+        Intent postAWSIntent = new Intent(AWSManager.INTENT_PROCESS_RESULT);
+        postAWSIntent.putExtra(AWSManager.EXTRA_AWS_RESULT, result);
+        mContext.sendBroadcast(postAWSIntent);
     }
 }

@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.Toast;
@@ -16,8 +17,8 @@ import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
 import com.google.android.gms.maps.model.BitmapDescriptor;
 import com.google.android.gms.maps.model.BitmapDescriptorFactory;
-import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
+import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 /**
@@ -51,7 +52,7 @@ public class Activity_Map extends ActionBarActivity implements OnMapReadyCallbac
         fragmentTransaction.commit();
 
         mapFragment.getMapAsync(this);
-        Toast.makeText(this, "Rendering " + mNotes.size() + " markers", Toast.LENGTH_LONG).show();
+        Toast.makeText(this, "Rendering " + mNotes.size() + " markers", Toast.LENGTH_SHORT).show();
     }
 
     @Override
@@ -71,10 +72,26 @@ public class Activity_Map extends ActionBarActivity implements OnMapReadyCallbac
                 map.addMarker(staticMarker);
             }
             LatLng firstLocation = new LatLng(mNotes.getLatitude(0), mNotes.getLongitude(0));
-            map.moveCamera(CameraUpdateFactory.newLatLngZoom(firstLocation, DEFAULT_CAMERA_ZOOM-4));
+            map.moveCamera(CameraUpdateFactory.newLatLngZoom(firstLocation, DEFAULT_CAMERA_ZOOM-2));
         } else {
             map.moveCamera(CameraUpdateFactory.newLatLngZoom(OTTAWA_COORDINATES, DEFAULT_CAMERA_ZOOM));
         }
+
+        map.setOnMarkerClickListener(new GoogleMap.OnMarkerClickListener() {
+            Marker currentShown;
+            public boolean onMarkerClick(Marker marker) {
+                if (marker.equals(currentShown)) {
+                    marker.hideInfoWindow();
+                    currentShown = null;
+                } else {
+                    marker.showInfoWindow();
+                    currentShown = marker;
+                }
+                return true;
+            }
+        });
+
+        Log.d(TAG, "Google map is ready");
     }
 
     @Override

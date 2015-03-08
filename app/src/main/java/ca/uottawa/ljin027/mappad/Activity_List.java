@@ -75,7 +75,7 @@ public class Activity_List extends ActionBarActivity {
 
         AWSManager.setContext(this);
         mBroadcastReceiver = new AWSMessageReceiver();
-        IntentFilter intentFilter = new IntentFilter(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+        IntentFilter intentFilter = new IntentFilter(AWSManager.INTENT_PROCESS_RESULT);
         this.registerReceiver(mBroadcastReceiver, intentFilter);
 
         Button mapButton = (Button) findViewById(R.id.button_ShowMap);
@@ -227,21 +227,20 @@ public class Activity_List extends ActionBarActivity {
         if (requestCode == ACTIVITY_EDIT) {
             Log.d(TAG, "Return from Activity Edit");
             if (intent != null) {
+                mNotes = new NoteManager(this);
                 Bundle bundle = intent.getExtras();
                 if (mNotes.setNote(
-                        bundle.getInt(NoteManager.INDEX),
-                        bundle.getString(NoteManager.TITLE),
-                        bundle.getString(NoteManager.CONTENT),
-                        bundle.getDouble(NoteManager.LATITUDE),
-                        bundle.getDouble(NoteManager.LONGITUDE))
+                        bundle.getInt(NoteManager.EXTRA_INDEX),
+                        bundle.getString(NoteManager.EXTRA_TITLE),
+                        bundle.getString(NoteManager.EXTRA_CONTENT),
+                        bundle.getDouble(NoteManager.EXTRA_LATITUDE),
+                        bundle.getDouble(NoteManager.EXTRA_LONGITUDE))
                         == NoteManager.NEED_SYNCHRONIZE) {
                     mPendingUpload = true;
                     fillList();
                 }
             } else {
-                mPendingUpload = true;
-                mNotes = new NoteManager(this);
-                fillList();
+                Log.d(TAG, "Return from Activity Edit with null Intent, ERROR!");
             }
         } else if (requestCode == ACTIVITY_MAP) {
             Log.d(TAG, "Return from Activity Map");
@@ -250,11 +249,11 @@ public class Activity_List extends ActionBarActivity {
 
     Bundle makeBundle(int index) {
         Bundle bundle = new Bundle();
-        bundle.putInt(NoteManager.INDEX, index);
-        bundle.putString(NoteManager.TITLE, mNotes.getTitle(index));
-        bundle.putString(NoteManager.CONTENT, mNotes.getContent(index));
-        bundle.putDouble(NoteManager.LATITUDE, mNotes.getLatitude(index));
-        bundle.putDouble(NoteManager.LONGITUDE, mNotes.getLongitude(index));
+        bundle.putInt(NoteManager.EXTRA_INDEX, index);
+        bundle.putString(NoteManager.EXTRA_TITLE, mNotes.getTitle(index));
+        bundle.putString(NoteManager.EXTRA_CONTENT, mNotes.getContent(index));
+        bundle.putDouble(NoteManager.EXTRA_LATITUDE, mNotes.getLatitude(index));
+        bundle.putDouble(NoteManager.EXTRA_LONGITUDE, mNotes.getLongitude(index));
         return bundle;
     }
 
@@ -265,24 +264,35 @@ public class Activity_List extends ActionBarActivity {
     }
 
     void toast(String message) {
-        if(mIsVisible)
-            Toast.makeText(this, message, Toast.LENGTH_LONG).show();
+        if(mIsVisible) {
+            Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        }
     }
 
     class AWSMessageReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
-            switch (intent.getIntExtra(AWSService.ACTION, AWSService.ACTION_FAILED)) {
-                case AWSService.ACTION_UPLOADED:
-                    Log.d(TAG, "Response from AWS upload service");
-                    toast("Uploaded");
+            switch (intent.getIntExtra(AWSManager.EXTRA_AWS_RESULT, AWSManager.AWS_FAILED)) {
+                case AWSManager.AWS_UPLOADED:
+                    Log.d(TAG, "Response from AWS service, uploaded");
+                    Toast.makeText(mActivity_List, "Uploaded", Toast.LENGTH_SHORT).show();
                     break;
-                case AWSService.ACTION_DOWNLOADED:
-                    Log.d(TAG, "Response from AWS download service");
+                case AWSManager.AWS_UPLOAD_FAILED:
+                    Log.d(TAG, "Response from AWS service, upload failed");
+                    toast("Try later");
+                    mPendingUpload = true;
+                    break;
+                case AWSManager.AWS_DOWNLOADED:
+                    Log.d(TAG, "Response from AWS service, downloaded");
                     toast("Synchronized");
                     if(mNotes.updateFromTmpFile() == NoteManager.NEED_UPDATE) {
                         fillList();
                     }
+                    break;
+                case AWSManager.AWS_DOWNLOAD_FAILED:
+                case AWSManager.AWS_FAILED:
+                    Log.d(TAG, "Response from AWS service, failed");
+                    break;
             }
         }
     }

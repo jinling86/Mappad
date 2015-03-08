@@ -16,12 +16,15 @@ import java.util.ArrayList;
  */
 public class NoteManager {
 
-    public static final String INDEX = "index";
-    public static final String TITLE = "title";
-    public static final String CONTENT = "content";
-    public static final String LATITUDE = "latitude";
-    public static final String LONGITUDE = "longitude";
+    public static final String EXTRA_INDEX = "index";
+    public static final String EXTRA_TITLE = "title";
+    public static final String EXTRA_CONTENT = "content";
+    public static final String EXTRA_LATITUDE = "latitude";
+    public static final String EXTRA_LONGITUDE = "longitude";
+
     public static final String DEFAULT_TITLE = "No title";
+    public static String EXT_FILE_NAME = null;
+    public static String EXT_TMP_FILE_NAME = null;
 
     public static final int NEW_NODE_POSITION = -1;
     public static final int NEED_SYNCHRONIZE = 3;
@@ -32,11 +35,8 @@ public class NoteManager {
     private static String TAG = "<<<<< Note Manager >>>>>";
     private static String FILE_NAME = "notes_file";
     private static String TMP_FILE_NAME = "notes_file_tmp";
-    public static String EXT_FILE_NAME = null;
-    public static String EXT_TMP_FILE_NAME = null;
 
     private Context mContext;
-
     private ArrayList<NoteItem> mAllNotes;
     private long mTimestamp;
 
@@ -230,7 +230,7 @@ public class NoteManager {
                 }
                 if (allNotes.get(index).mContent.compareTo(content) != 0) {
                     contentChanged = true;
-                    allNotes.get(index).mContent = title;
+                    allNotes.get(index).mContent = content;
                 }
                 if (!allNotes.get(index).mLatitude.equals(latitude)) {
                     contentChanged = true;

@@ -14,6 +14,7 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.maps.CameraUpdateFactory;
@@ -41,6 +42,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     private ImageButton mButton_Update;
 
     private boolean mControlledFinish = false;
+    private boolean mFirstCameraChange = true;
     private int mPosition;
     private String mTitle;
     private final String  mContent = "";
@@ -74,22 +76,25 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         mView_RefLatitude = (TextView) findViewById(R.id.textView_RefLatitude);
         mView_RefLongitude = (TextView) findViewById(R.id.textView_RefLongitude);
         mButton_Update = (ImageButton) findViewById(R.id.button_Update);
+
         mButton_Update.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View view) {
                 mLatitude = mNewLatitude;
                 mLongitude = mNewLongitude;
+                mView_Latitude.setTextColor(getResources().getColor(R.color.black));
+                mView_Longitude.setTextColor(getResources().getColor(R.color.black));
                 fillCoordinates();
             }
         });
 
         Bundle extras = getIntent().getExtras();
         if (extras != null) {
-            mPosition = extras.getInt(NoteManager.INDEX);
-            mTitle = extras.getString(NoteManager.TITLE);
-            //mContent = extras.getString(NoteManager.CONTENT);
-            mLatitude = extras.getDouble(NoteManager.LATITUDE);
-            mLongitude = extras.getDouble(NoteManager.LONGITUDE);
+            mPosition = extras.getInt(NoteManager.EXTRA_INDEX);
+            mTitle = extras.getString(NoteManager.EXTRA_TITLE);
+            //mContent = extras.getString(NoteManager.EXTRA_CONTENT);
+            mLatitude = extras.getDouble(NoteManager.EXTRA_LATITUDE);
+            mLongitude = extras.getDouble(NoteManager.EXTRA_LONGITUDE);
         } else {
             Log.d(TAG, "Receive a null Bundle, please check!");
         }
@@ -147,11 +152,11 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
 
     Bundle makeBundle() {
         Bundle bundle = new Bundle();
-        bundle.putInt(NoteManager.INDEX, mPosition);
-        bundle.putString(NoteManager.TITLE, mTitle);
-        bundle.putString(NoteManager.CONTENT, mContent);
-        bundle.putDouble(NoteManager.LATITUDE, mLatitude);
-        bundle.putDouble(NoteManager.LONGITUDE, mLongitude);
+        bundle.putInt(NoteManager.EXTRA_INDEX, mPosition);
+        bundle.putString(NoteManager.EXTRA_TITLE, mTitle);
+        bundle.putString(NoteManager.EXTRA_CONTENT, mContent);
+        bundle.putDouble(NoteManager.EXTRA_LATITUDE, mLatitude);
+        bundle.putDouble(NoteManager.EXTRA_LONGITUDE, mLongitude);
         return bundle;
     }
 
@@ -188,7 +193,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
 
         mMap.getUiSettings().setZoomGesturesEnabled(true);
         mMap.setMyLocationEnabled(true);
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLatitude, mLongitude), 15));
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLatitude, mLongitude), Activity_Map.DEFAULT_CAMERA_ZOOM));
 
         final BitmapDescriptor locatingIcon = BitmapDescriptorFactory.fromResource(R.drawable.ic_locating);
         mMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
@@ -197,9 +202,16 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
                 mMap.addMarker(new MarkerOptions().position(arg0.target).icon(locatingIcon));
                 mNewLatitude = arg0.target.latitude;
                 mNewLongitude = arg0.target.longitude;
+                if(!mFirstCameraChange) {
+                    mView_Latitude.setTextColor(getResources().getColor(R.color.grey));
+                    mView_Longitude.setTextColor(getResources().getColor(R.color.grey));
+                }
+                mFirstCameraChange = false;
                 fillRefCoordinates();
             }
         });
+
+        Log.d(TAG, "Google map is ready");
     }
 
     @Override
@@ -216,10 +228,10 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     @Override
-    public void onDestroy() {
-        super.onDestroy();
+    protected void onStop() {
+        super.onStop();
         if(!mControlledFinish) {
-            if(NoteManager.saveChanges(mPosition, mTitle, mContent,  mLatitude, mLongitude)
+            if (NoteManager.saveChanges(mPosition, mTitle, mContent, mLatitude, mLongitude)
                     == NoteManager.NEED_SYNCHRONIZE) {
                 AWSManager.upload();
             }
