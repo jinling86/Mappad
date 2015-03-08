@@ -67,7 +67,7 @@ public class NoteManager {
             }
             if(mAllNotes.get(index).mContent.compareTo(content) != 0) {
                 contentChanged = true;
-                mAllNotes.get(index).mContent = title;
+                mAllNotes.get(index).mContent = content;
             }
             if(!mAllNotes.get(index).mLatitude.equals(latitude)) {
                 contentChanged = true;
@@ -100,6 +100,7 @@ public class NoteManager {
         newNote.mLongitude = longitude;
         newNote.mLatitude = latitude;
         mAllNotes.add(newNote);
+        save();
         return mAllNotes.size() - 1;
     }
 

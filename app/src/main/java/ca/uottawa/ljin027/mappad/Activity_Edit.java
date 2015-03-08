@@ -46,6 +46,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     private double mLongitude;
     private double mNewLatitude;
     private double mNewLongitude;
+    MapFragment mMapFragment;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +65,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         fragmentTransaction.add(R.id.locating, mapFragment);
         fragmentTransaction.commit();
         mapFragment.getMapAsync(this);
+        mMapFragment = mapFragment;
 
         mView_Title = (EditText) findViewById(R.id.note_title);
         mView_Content = (EditText) findViewById(R.id.note_content);
@@ -101,6 +103,8 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
 
     private void fillViews() {
         if (mPosition != NoteManager.NEW_NODE_POSITION) {
+            if(mTitle.compareTo(NoteManager.DEFAULT_TITLE) == 0)
+                mTitle = "";
             mView_Title.setText(mTitle);
             mView_Content.setText(mContent);
             fillCoordinates();
@@ -143,6 +147,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         if (id == R.id.action_done) {
             Log.d(TAG, "Finish button pressed");
             controlledFinish();
+            finish();
             return true;
         }
 
@@ -155,7 +160,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         mIntent.putExtras(makeBundle());
         setResult(RESULT_OK, mIntent);
         mControlledFinish = true;
-        finish();
+
     }
 
     private void readInput() {
@@ -186,13 +191,19 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     public void onBackPressed() {
         Log.d(TAG, "Back button pressed");
         controlledFinish();
+        finish();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        readInput();
     }
 
     @Override
     public void onDestroy() {
         super.onDestroy();
         if(!mControlledFinish) {
-            readInput();
             if(NoteManager.saveChanges(mPosition, mTitle, mContent,  mLatitude, mLongitude)
                     == NoteManager.NEED_SYNCHRONIZE) {
                 AWSManager.upload();

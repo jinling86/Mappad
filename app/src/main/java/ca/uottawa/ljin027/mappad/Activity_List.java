@@ -31,15 +31,17 @@ import java.util.List;
 public class Activity_List extends ActionBarActivity {
 
     private static final int DELETE_ID = Menu.FIRST;
-    private static final int ACTIVITY_EDIT = 100;
+    private static final int ACTIVITY_EDIT = 0;
     private static final int ACTIVITY_MAP = ACTIVITY_EDIT + 1;
 
     private NoteManager mNotes = null;
     private ListView mView_NoteList = null;
     private TextView mView_NoteHint = null;
     private final Activity_List mActivity_List = this;
-    private GoogleApiClient mGoogleApiClient;
-    private Location mLastLocation;
+    private GoogleApiClient mGoogleApiClient = null;
+    private Location mLastLocation = null;
+    private boolean mPendingUpload = false;
+    private boolean mPendingLocating = false;
 
     private final String TAG = "<<<<< Activity List >>>>>";
 
@@ -76,8 +78,10 @@ public class Activity_List extends ActionBarActivity {
                 int action = intent.getIntExtra(AWSService.ACTION, AWSService.ACTION_FAILED);
                 if (action == AWSService.ACTION_UPLOADED) {
                     Log.d(TAG, "Response from AWS upload service");
+                    toast("Uploaded");
                 } else if (action == AWSService.ACTION_DOWNLOADED) {
                     Log.d(TAG, "Response from AWS download service");
+                    toast("Synchronized");
                     if(mNotes.updateFromTmpFile() == NoteManager.NEED_UPDATE) {
                         fillList();
                     }
@@ -106,7 +110,10 @@ public class Activity_List extends ActionBarActivity {
             .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
                 @Override
                 public void onConnected(Bundle bundle) {
-                    toast("Location confirmed");
+                    if(mPendingLocating == false) {
+                        mPendingLocating = true;
+                        toast("Location confirmed");
+                    }
                 }
 
                 @Override
@@ -127,21 +134,27 @@ public class Activity_List extends ActionBarActivity {
         Log.d(TAG, "Activity created");
     }
 
+
     @Override
     protected void onStart() {
         super.onStart();
-        mGoogleApiClient.connect();
-    }
-
-    protected void onResume() {
-        super.onResume();
+        if(mGoogleApiClient != null) {
+            if(!mGoogleApiClient.isConnected())
+                mGoogleApiClient.connect();
+        }
     }
 
     @Override
     protected void onStop() {
         super.onStop();
-        if (mGoogleApiClient.isConnected()) {
-            mGoogleApiClient.disconnect();
+        if(mGoogleApiClient != null) {
+            if (mGoogleApiClient.isConnected()) {
+                mGoogleApiClient.disconnect();
+            }
+        }
+        if(mPendingUpload) {
+            mPendingUpload = false;
+            AWSManager.upload();
         }
     }
 
@@ -189,6 +202,7 @@ public class Activity_List extends ActionBarActivity {
 
             Intent intent = new Intent(mActivity_List, Activity_Edit.class);
             int newPosition = mNotes.addNote("", "", mLastLocation.getLatitude(), mLastLocation.getLongitude());
+            fillList();
             intent.putExtras(makeBundle(newPosition));
             startActivityForResult(intent, ACTIVITY_EDIT);
             return true;
@@ -210,7 +224,7 @@ public class Activity_List extends ActionBarActivity {
                 AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
                 mNotes.deleteNote(info.position);
                 fillList();
-                AWSManager.upload();
+                mPendingUpload = true;
                 return true;
         }
         return super.onContextItemSelected(item);
@@ -230,10 +244,11 @@ public class Activity_List extends ActionBarActivity {
                         bundle.getDouble(NoteManager.LATITUDE),
                         bundle.getDouble(NoteManager.LONGITUDE))
                         == NoteManager.NEED_SYNCHRONIZE) {
-                    //AWSManager.upload();
-                    //fillList();
+                    mPendingUpload = true;
+                    fillList();
                 }
             } else {
+                mPendingUpload = true;
                 mNotes = new NoteManager(this);
                 fillList();
             }

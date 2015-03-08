@@ -72,6 +72,8 @@ public class Activity_Map extends ActionBarActivity implements OnMapReadyCallbac
             }
             LatLng firstLocation = new LatLng(mNotes.getLatitude(0), mNotes.getLongitude(0));
             map.moveCamera(CameraUpdateFactory.newLatLngZoom(firstLocation, DEFAULT_CAMERA_ZOOM));
+        } else {
+            map.moveCamera(CameraUpdateFactory.newLatLngZoom(OTTAWA_COORDINATES, DEFAULT_CAMERA_ZOOM));
         }
     }
 
