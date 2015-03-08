@@ -15,12 +15,14 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.ListView;
 import android.widget.SimpleAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.api.GoogleApiClient;
 import com.google.android.gms.location.LocationServices;
 
@@ -37,15 +39,21 @@ public class Activity_List extends ActionBarActivity {
     private NoteManager mNotes = null;
     private ListView mView_NoteList = null;
     private TextView mView_NoteHint = null;
+    private TextView mView_GoogleHint = null;
+    private Button mButton_ConfirmDeletion = null;
+    private Button mButton_CancelDeletion = null;
+    private Button mButton_ShowMap = null;
+
     private final Activity_List mActivity_List = this;
     private GoogleApiClient mGoogleApiClient = null;
     private Location mLastLocation = null;
     private AWSMessageReceiver mBroadcastReceiver = null;
 
     private boolean mPendingUpload = false;
-    private boolean mPendingLocating = false;
+    private boolean mPendingLocating = true;
     private boolean mIsVisible = true;
-
+    private boolean mIsDeleting = false;
+    private boolean mGoogleServiceAvailable = true;
 
     private final String TAG = "<<<<< Activity List >>>>>";
 
@@ -63,29 +71,21 @@ public class Activity_List extends ActionBarActivity {
         // Store the handle
         mView_NoteList = (ListView)findViewById(R.id.note_list);
         mView_NoteHint = (TextView)findViewById(R.id.note_hint);
+        mView_GoogleHint = (TextView)findViewById(R.id.textView_GoogleHint);
         registerForContextMenu(mView_NoteList);
-        mView_NoteList.setOnItemClickListener( new AdapterView.OnItemClickListener() {
-            @Override
-            public void onItemClick(AdapterView<?> arg0, View view, int position, long rowId) {
-                Intent intent = new Intent(mActivity_List, Activity_Edit.class);
-                intent.putExtras(makeBundle(position));
-                startActivityForResult(intent, ACTIVITY_EDIT);
-            }
-        });
+        mView_NoteList.setOnItemClickListener(new OnItemClickListener_Edit());
 
         AWSManager.setContext(this);
         mBroadcastReceiver = new AWSMessageReceiver();
         IntentFilter intentFilter = new IntentFilter(AWSManager.INTENT_PROCESS_RESULT);
         this.registerReceiver(mBroadcastReceiver, intentFilter);
 
-        Button mapButton = (Button) findViewById(R.id.button_ShowMap);
-        mapButton.setOnClickListener(new Button.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                Intent intent = new Intent(mActivity_List, Activity_Map.class);
-                startActivityForResult(intent, ACTIVITY_MAP);
-            }
-        });
+        mButton_ShowMap = (Button) findViewById(R.id.button_ShowMap);
+        mButton_ShowMap.setOnClickListener(new ButtonListener_ShowMap());
+        mButton_ConfirmDeletion = (Button) findViewById(R.id.button_ConfirmDeletion);
+        mButton_ConfirmDeletion.setOnClickListener(new ButtonListener_ConfirmDeletion());
+        mButton_CancelDeletion = (Button) findViewById(R.id.button_CancelDeletion);
+        mButton_CancelDeletion.setOnClickListener(new ButtonListener_CancelDeletion());
 
         // Recover the saved notes
         mNotes = new NoteManager(this);
@@ -95,29 +95,14 @@ public class Activity_List extends ActionBarActivity {
         mLastLocation.setLatitude(Activity_Map.OTTAWA_COORDINATES.latitude);
         mLastLocation.setLongitude(Activity_Map.OTTAWA_COORDINATES.longitude);
 
-        mGoogleApiClient = new GoogleApiClient.Builder(this)
-            .addConnectionCallbacks(new GoogleApiClient.ConnectionCallbacks() {
-                @Override
-                public void onConnected(Bundle bundle) {
-                    if(!mPendingLocating) {
-                        mPendingLocating = true;
-                        toast("Location confirmed");
-                    }
-                }
-
-                @Override
-                public void onConnectionSuspended(int i) {
-                    toast("Location service error");
-                }
-            })
-            .addOnConnectionFailedListener(new GoogleApiClient.OnConnectionFailedListener() {
-                @Override
-                public void onConnectionFailed(ConnectionResult connectionResult) {
-                    toast("Location service error");
-                }
-            })
-            .addApi(LocationServices.API)
-            .build();
+        detectGoogleService();
+        if(mGoogleServiceAvailable) {
+            mGoogleApiClient = new GoogleApiClient.Builder(this)
+                    .addConnectionCallbacks(new LocatingSucceedCallBack())
+                    .addOnConnectionFailedListener(new LocatingFailedCallBack())
+                    .addApi(LocationServices.API)
+                    .build();
+        }
 
         AWSManager.download();
         Log.d(TAG, "Activity created");
@@ -138,6 +123,7 @@ public class Activity_List extends ActionBarActivity {
     protected void onStop() {
         super.onStop();
         mIsVisible = false;
+        mIsDeleting = false;
         if(mGoogleApiClient != null) {
             if (mGoogleApiClient.isConnected()) {
                 mGoogleApiClient.disconnect();
@@ -149,31 +135,10 @@ public class Activity_List extends ActionBarActivity {
         }
     }
 
-    private void fillList() {
-        if(mNotes.size() != 0) {
-            // Hide the hind
-            mView_NoteHint.setVisibility(View.GONE);
-            mView_NoteList.setVisibility(View.VISIBLE);
-
-            // Update the list
-            String[] from = new String[]{"note_title"};
-            int[] to = new int[]{R.id.item_title};
-
-            // prepare the list of all records
-            List<HashMap<String, String>> nodeList = new ArrayList<HashMap<String, String>>();
-            for (int i = 0; i < mNotes.size(); i++) {
-                HashMap<String, String> map = new HashMap<String, String>();
-                map.put("note_title", mNotes.getTitle(i));
-                nodeList.add(map);
-            }
-
-            // fill in the grid_item layout
-            SimpleAdapter adapter = new SimpleAdapter(this, nodeList, R.layout.view_listitem, from, to);
-            mView_NoteList.setAdapter(adapter);
-        } else {
-            mView_NoteList.setVisibility(View.GONE);
-            mView_NoteHint.setVisibility(View.VISIBLE);
-        }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        unregisterReceiver(mBroadcastReceiver);
     }
 
     @Override
@@ -185,9 +150,15 @@ public class Activity_List extends ActionBarActivity {
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int id = item.getItemId();
-
         if (id == R.id.action_new) {
-            Location tmp = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
+            if(mIsDeleting) {
+                mIsDeleting = false;
+                fillList();
+            }
+
+            Location tmp = null;
+            if(mGoogleServiceAvailable)
+                tmp = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
             if(tmp != null)
                 mLastLocation = tmp;
 
@@ -196,7 +167,17 @@ public class Activity_List extends ActionBarActivity {
             fillList();
             intent.putExtras(makeBundle(newPosition));
             startActivityForResult(intent, ACTIVITY_EDIT);
-            return true;
+
+        } else if (id == R.id.action_delete) {
+            if(mIsDeleting) {
+                mIsDeleting = false;
+                fillList();
+            } else {
+                if(mNotes.size() != 0) {
+                    mIsDeleting = true;
+                    fillList();
+                }
+            }
         }
 
         return super.onOptionsItemSelected(item);
@@ -247,6 +228,62 @@ public class Activity_List extends ActionBarActivity {
         }
     }
 
+    private void fillList() {
+        if(mIsDeleting) {
+            // Update the list
+            String[] from = new String[]{"note_title"};
+            int[] to = new int[]{R.id.textView_delete};
+
+            // prepare the list of all records
+            List<HashMap<String, String>> nodeList = new ArrayList<HashMap<String, String>>();
+            for (int i = 0; i < mNotes.size(); i++) {
+                HashMap<String, String> map = new HashMap<String, String>();
+                map.put("note_title", mNotes.getTitle(i));
+                nodeList.add(map);
+            }
+
+            // fill in the grid_item layout
+            SimpleAdapter adapter = new SimpleAdapter(this, nodeList, R.layout.view_delete_item, from, to);
+            mView_NoteList.setAdapter(adapter);
+
+            mView_NoteList.setVisibility(View.VISIBLE);
+            mView_NoteHint.setVisibility(View.GONE);
+            mButton_ShowMap.setVisibility(View.GONE);
+            mButton_ConfirmDeletion.setVisibility(View.VISIBLE);
+            mButton_CancelDeletion.setVisibility(View.VISIBLE);
+        } else {
+            if (mNotes.size() != 0) {
+                // Update the list
+                String[] from = new String[]{"note_title"};
+                int[] to = new int[]{R.id.item_title};
+
+                // prepare the list of all records
+                List<HashMap<String, String>> nodeList = new ArrayList<HashMap<String, String>>();
+                for (int i = 0; i < mNotes.size(); i++) {
+                    HashMap<String, String> map = new HashMap<String, String>();
+                    map.put("note_title", mNotes.getTitle(i));
+                    nodeList.add(map);
+                }
+
+                // fill in the grid_item layout
+                SimpleAdapter adapter = new SimpleAdapter(this, nodeList, R.layout.view_list_item, from, to);
+                mView_NoteList.setAdapter(adapter);
+
+                // Hide the hind
+                mView_NoteHint.setVisibility(View.GONE);
+                mView_NoteList.setVisibility(View.VISIBLE);
+            } else {
+                mView_NoteList.setVisibility(View.GONE);
+                mView_NoteHint.setVisibility(View.VISIBLE);
+            }
+
+            mButton_ShowMap.setVisibility(View.VISIBLE);
+            mButton_ConfirmDeletion.setVisibility(View.GONE);
+            mButton_CancelDeletion.setVisibility(View.GONE);
+        }
+    }
+
+
     Bundle makeBundle(int index) {
         Bundle bundle = new Bundle();
         bundle.putInt(NoteManager.EXTRA_INDEX, index);
@@ -257,15 +294,24 @@ public class Activity_List extends ActionBarActivity {
         return bundle;
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        unregisterReceiver(mBroadcastReceiver);
-    }
-
     void toast(String message) {
         if(mIsVisible) {
             Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    void detectGoogleService() {
+        int status= GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
+        if(status == ConnectionResult.SUCCESS) {
+            mGoogleServiceAvailable = true;
+            mView_GoogleHint.setVisibility(View.GONE);
+        } else {
+            mGoogleServiceAvailable = false;
+            mView_GoogleHint.setVisibility(View.VISIBLE);
+            String errorMsg = "Google Play Service Error :\n";
+            errorMsg += GooglePlayServicesUtil.getErrorString(status);
+            errorMsg += "\nDisable All Google Maps Functions";
+            mView_GoogleHint.setText(errorMsg);
         }
     }
 
@@ -294,6 +340,72 @@ public class Activity_List extends ActionBarActivity {
                     Log.d(TAG, "Response from AWS service, failed");
                     break;
             }
+        }
+    }
+
+    class ButtonListener_ShowMap implements Button.OnClickListener {
+        @Override
+        public void onClick(View view) {
+            if(mGoogleServiceAvailable) {
+                Intent intent = new Intent(mActivity_List, Activity_Map.class);
+                startActivityForResult(intent, ACTIVITY_MAP);
+            } else {
+                toast("Button disabled");
+            }
+        }
+    }
+
+    class ButtonListener_CancelDeletion implements Button.OnClickListener {
+        @Override
+        public void onClick(View view) {
+            mIsDeleting = false;
+            fillList();
+        }
+    }
+
+    class ButtonListener_ConfirmDeletion implements Button.OnClickListener {
+        @Override
+        public void onClick(View view) {
+            for (int position = mView_NoteList.getChildCount() - 1; position >= 0; position--) {
+                CheckBox cb = (CheckBox) mView_NoteList.getChildAt(position).findViewById(R.id.checkBox_delete);
+                if( cb.isChecked() ) {
+                    mNotes.deleteNote(position);
+                }
+            }
+            mPendingUpload = true;
+            mIsDeleting = false;
+            fillList();
+        }
+    }
+
+    class LocatingSucceedCallBack implements GoogleApiClient.ConnectionCallbacks {
+        @Override
+        public void onConnected(Bundle bundle) {
+            if(mPendingLocating) {
+                mPendingLocating = false;
+                toast("Location confirmed");
+            }
+        }
+
+        @Override
+        public void onConnectionSuspended(int i) {
+            toast("Location service error");
+        }
+    }
+
+    class LocatingFailedCallBack implements GoogleApiClient.OnConnectionFailedListener {
+        @Override
+        public void onConnectionFailed(ConnectionResult connectionResult) {
+            toast("Location service error");
+        }
+    }
+
+    class OnItemClickListener_Edit implements AdapterView.OnItemClickListener {
+        @Override
+        public void onItemClick(AdapterView<?> arg0, View view, int position, long rowId) {
+            Intent intent = new Intent(mActivity_List, Activity_Edit.class);
+            intent.putExtras(makeBundle(position));
+            startActivityForResult(intent, ACTIVITY_EDIT);
         }
     }
 }

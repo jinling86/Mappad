@@ -96,11 +96,22 @@
         </TableRow>
     </TableLayout>
 
+
     <RelativeLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_margin="8dp"
         android:layout_gravity="center_horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Problems please go away"
+            android:id="@+id/textView_GoogleHint"
+            android:layout_centerInParent="true"
+            android:textColor="@color/black"
+            android:textSize="20sp"
+            android:visibility="gone"/>
 
         <FrameLayout
             android:layout_width="match_parent"
@@ -116,6 +127,7 @@
             android:id="@+id/textView_MapHint"
             android:layout_alignParentBottom="true"
             android:layout_alignParentRight="true"
+            android:layout_alignParentEnd="true"
             android:textColor="@color/coordinates_reference"
             android:textSize="12sp"/>
 

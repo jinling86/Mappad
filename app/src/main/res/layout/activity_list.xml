@@ -14,14 +14,53 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"/>
 
-        <TextView android:id="@+id/note_hint"
+        <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/list_no_items"
-            android:layout_centerVertical="true"
-            android:layout_centerHorizontal="true"
-            android:textSize="16sp"/>
+            android:orientation="vertical"
+            android:layout_centerInParent="true" >
+
+            <TextView
+                android:id="@+id/note_hint"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/list_no_items"
+                android:textSize="16sp"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="Problems please go away"
+                android:id="@+id/textView_GoogleHint"
+                android:textColor="@color/black"
+                android:textSize="16sp"
+                android:visibility="gone" />
+
+        </LinearLayout>
+
+
     </RelativeLayout>
+
+    <Button
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:text="Cancel"
+        android:id="@+id/button_CancelDeletion"
+        android:layout_gravity="center_horizontal"
+        android:layout_above="@+id/button_ConfirmDeletion"
+        android:layout_centerInParent="true"
+        android:visibility="gone" />
+
+    <Button
+        android:layout_width="200dp"
+        android:layout_height="wrap_content"
+        android:text="Delete !"
+        android:id="@+id/button_ConfirmDeletion"
+        android:layout_gravity="center_horizontal"
+        android:layout_alignParentBottom="true"
+        android:layout_centerInParent="true"
+        android:visibility="gone" />
 
     <Button
         android:layout_width="200dp"

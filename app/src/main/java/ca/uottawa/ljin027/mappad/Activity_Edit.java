@@ -16,6 +16,8 @@ import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.common.ConnectionResult;
+import com.google.android.gms.common.GooglePlayServicesUtil;
 import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -33,13 +35,13 @@ import com.google.android.gms.maps.model.MarkerOptions;
 public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallback {
     private final String TAG = "<<<<< Activity Edit >>>>>";
 
-    private EditText mView_Title;
-    //private EditText mView_Content;
-    private TextView mView_Latitude;
-    private TextView mView_Longitude;
-    private TextView mView_RefLatitude;
-    private TextView mView_RefLongitude;
-    private ImageButton mButton_Update;
+    private EditText mView_Title = null;
+    //private EditText mView_Content = null;
+    private TextView mView_Latitude = null;
+    private TextView mView_Longitude = null;
+    private TextView mView_RefLatitude = null;
+    private TextView mView_RefLongitude = null;
+    private TextView mView_GoogleHint = null;
 
     private boolean mControlledFinish = false;
     private boolean mFirstCameraChange = true;
@@ -50,6 +52,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     private double mLongitude;
     private double mNewLatitude;
     private double mNewLongitude;
+    private boolean mGoogleServiceAvailable = true;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,21 +65,15 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         actionBar.setTitle(R.string.edit_title);
         actionBar.setIcon(R.drawable.ic_pad);
 
-        FragmentManager fragmentManager = getFragmentManager();
-        FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
-        MapFragment mapFragment = new MapFragment();
-        fragmentTransaction.add(R.id.locating, mapFragment);
-        fragmentTransaction.commit();
-        mapFragment.getMapAsync(this);
-
         mView_Title = (EditText) findViewById(R.id.note_title);
         //mView_Content = (EditText) findViewById(R.id.note_content);
         mView_Latitude = (TextView) findViewById(R.id.textView_Latitude);
         mView_Longitude = (TextView) findViewById(R.id.textView_Longitude);
         mView_RefLatitude = (TextView) findViewById(R.id.textView_RefLatitude);
         mView_RefLongitude = (TextView) findViewById(R.id.textView_RefLongitude);
-        mButton_Update = (ImageButton) findViewById(R.id.button_Update);
+        mView_GoogleHint = (TextView) findViewById(R.id.textView_GoogleHint);
 
+        ImageButton mButton_Update = (ImageButton) findViewById(R.id.button_Update);
         mButton_Update.setOnClickListener(new Button.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -87,6 +84,16 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
                 fillCoordinates();
             }
         });
+
+        detectGoogleService();
+        if(mGoogleServiceAvailable) {
+            FragmentManager fragmentManager = getFragmentManager();
+            FragmentTransaction fragmentTransaction = fragmentManager.beginTransaction();
+            MapFragment mapFragment = new MapFragment();
+            fragmentTransaction.add(R.id.locating, mapFragment);
+            fragmentTransaction.commit();
+            mapFragment.getMapAsync(this);
+        }
 
         Bundle extras = getIntent().getExtras();
         if (extras != null) {
@@ -106,6 +113,77 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         } else {
             fillViews();
         }
+    }
+
+    @Override
+    public void onBackPressed() {
+        Log.d(TAG, "Back button pressed");
+        controlledFinish();
+        finish();
+    }
+
+    @Override
+    protected void onPause() {
+        super.onPause();
+        readInput();
+    }
+
+    @Override
+    protected void onStop() {
+        super.onStop();
+        if(!mControlledFinish) {
+            if (NoteManager.saveChanges(mPosition, mTitle, mContent, mLatitude, mLongitude)
+                    == NoteManager.NEED_SYNCHRONIZE) {
+                AWSManager.upload();
+            }
+        }
+    }
+
+    @Override
+    public boolean onCreateOptionsMenu(Menu menu) {
+        getMenuInflater().inflate(R.menu.menu_edit, menu);
+        return true;
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        int id = item.getItemId();
+
+        if (id == R.id.action_done) {
+            Log.d(TAG, "Finish button pressed");
+            controlledFinish();
+            finish();
+            return true;
+        }
+
+        return super.onOptionsItemSelected(item);
+    }
+
+    @Override
+    public void onMapReady(GoogleMap map) {
+        final GoogleMap mMap = map;
+
+        mMap.getUiSettings().setZoomGesturesEnabled(true);
+        mMap.setMyLocationEnabled(true);
+        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLatitude, mLongitude), Activity_Map.DEFAULT_CAMERA_ZOOM));
+
+        final BitmapDescriptor locatingIcon = BitmapDescriptorFactory.fromResource(R.drawable.ic_locating);
+        mMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
+            public void onCameraChange(CameraPosition arg0) {
+                mMap.clear();
+                mMap.addMarker(new MarkerOptions().position(arg0.target).icon(locatingIcon));
+                mNewLatitude = arg0.target.latitude;
+                mNewLongitude = arg0.target.longitude;
+                if(!mFirstCameraChange) {
+                    mView_Latitude.setTextColor(getResources().getColor(R.color.grey));
+                    mView_Longitude.setTextColor(getResources().getColor(R.color.grey));
+                }
+                mFirstCameraChange = false;
+                fillRefCoordinates();
+            }
+        });
+
+        Log.d(TAG, "Google map is ready");
     }
 
     private void fillViews() {
@@ -144,11 +222,6 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         mView_RefLongitude.setText(getLongitude(mNewLongitude));
     }
 
-    @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu_edit, menu);
-        return true;
-    }
 
     Bundle makeBundle() {
         Bundle bundle = new Bundle();
@@ -158,20 +231,6 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         bundle.putDouble(NoteManager.EXTRA_LATITUDE, mLatitude);
         bundle.putDouble(NoteManager.EXTRA_LONGITUDE, mLongitude);
         return bundle;
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-
-        if (id == R.id.action_done) {
-            Log.d(TAG, "Finish button pressed");
-            controlledFinish();
-            finish();
-            return true;
-        }
-
-        return super.onOptionsItemSelected(item);
     }
 
     private void controlledFinish() {
@@ -187,54 +246,18 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         //mContent = mView_Content.getText().toString();
     }
 
-    @Override
-    public void onMapReady(GoogleMap map) {
-        final GoogleMap mMap = map;
-
-        mMap.getUiSettings().setZoomGesturesEnabled(true);
-        mMap.setMyLocationEnabled(true);
-        mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(new LatLng(mLatitude, mLongitude), Activity_Map.DEFAULT_CAMERA_ZOOM));
-
-        final BitmapDescriptor locatingIcon = BitmapDescriptorFactory.fromResource(R.drawable.ic_locating);
-        mMap.setOnCameraChangeListener(new GoogleMap.OnCameraChangeListener() {
-            public void onCameraChange(CameraPosition arg0) {
-                mMap.clear();
-                mMap.addMarker(new MarkerOptions().position(arg0.target).icon(locatingIcon));
-                mNewLatitude = arg0.target.latitude;
-                mNewLongitude = arg0.target.longitude;
-                if(!mFirstCameraChange) {
-                    mView_Latitude.setTextColor(getResources().getColor(R.color.grey));
-                    mView_Longitude.setTextColor(getResources().getColor(R.color.grey));
-                }
-                mFirstCameraChange = false;
-                fillRefCoordinates();
-            }
-        });
-
-        Log.d(TAG, "Google map is ready");
-    }
-
-    @Override
-    public void onBackPressed() {
-        Log.d(TAG, "Back button pressed");
-        controlledFinish();
-        finish();
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        readInput();
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        if(!mControlledFinish) {
-            if (NoteManager.saveChanges(mPosition, mTitle, mContent, mLatitude, mLongitude)
-                    == NoteManager.NEED_SYNCHRONIZE) {
-                AWSManager.upload();
-            }
+    void detectGoogleService() {
+        int status= GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);
+        if(status == ConnectionResult.SUCCESS) {
+            mGoogleServiceAvailable = true;
+            mView_GoogleHint.setVisibility(View.GONE);
+        } else {
+            mGoogleServiceAvailable = false;
+            mView_GoogleHint.setVisibility(View.VISIBLE);
+            String errorMsg = "Google Play Service Error :\n";
+            errorMsg += GooglePlayServicesUtil.getErrorString(status);
+            errorMsg += "\nDisable All Google Maps Functions";
+            mView_GoogleHint.setText(errorMsg);
         }
     }
 }
