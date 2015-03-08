@@ -8,18 +8,30 @@ import android.content.Intent;
  */
 public class AWSManager {
 
-    public static void upload(Context context, String file_name) {
-        Intent intent = new Intent(context, AWSService.class);
-        intent.setAction(Intent.ACTION_SEND);
-        intent.putExtra(AWSService.FILE_NAME, file_name);
-        context.startService(intent);
+    private static Context MainActivityContext;
+
+    public static void setContext(Context context) {
+        if(context instanceof Activity_List) {
+            MainActivityContext = context;
+        }
     }
 
-    public static void download(Context context, String file_name) {
-        Intent intent = new Intent(context, AWSService.class);
-        intent.setAction(Intent.ACTION_GET_CONTENT);
-        intent.putExtra(AWSService.FILE_NAME, file_name);
-        context.startService(intent);
+    public static void upload() {
+        if(MainActivityContext != null) {
+            Intent intent = new Intent(MainActivityContext, AWSService.class);
+            intent.setAction(Intent.ACTION_SEND);
+            intent.putExtra(AWSService.FILE_NAME, NoteManager.EXT_FILE_NAME);
+            MainActivityContext.startService(intent);
+        }
+    }
+
+    public static void download() {
+        if(MainActivityContext != null) {
+            Intent intent = new Intent(MainActivityContext, AWSService.class);
+            intent.setAction(Intent.ACTION_GET_CONTENT);
+            intent.putExtra(AWSService.FILE_NAME, NoteManager.EXT_TMP_FILE_NAME);
+            MainActivityContext.startService(intent);
+        }
     }
 
 }

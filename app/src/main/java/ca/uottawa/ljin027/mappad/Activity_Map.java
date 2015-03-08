@@ -8,6 +8,7 @@ import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
+import android.widget.Toast;
 
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
@@ -50,6 +51,7 @@ public class Activity_Map extends ActionBarActivity implements OnMapReadyCallbac
         fragmentTransaction.commit();
 
         mapFragment.getMapAsync(this);
+        Toast.makeText(this, "Rendering " + mNotes.size() + " markers", Toast.LENGTH_LONG).show();
     }
 
     @Override

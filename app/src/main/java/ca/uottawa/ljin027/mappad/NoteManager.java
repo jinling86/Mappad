@@ -24,10 +24,10 @@ public class NoteManager {
     public static final String DEFAULT_TITLE = "No title";
 
     public static final int NEW_NODE_POSITION = -1;
-    public static final boolean NEED_SYNCHRONIZE = true;
-    public static final boolean DO_NOT_NEED_SYNCHRONIZE = false;
-    public static final boolean NEED_UPDATE = true;
-    public static final boolean DO_NOT_NEED_UPDATE = false;
+    public static final int NEED_SYNCHRONIZE = 3;
+    public static final int DO_NOT_NEED_SYNCHRONIZE = 2;
+    public static final int NEED_UPDATE = 1;
+    public static final int DO_NOT_NEED_UPDATE = 0;
 
     private static String TAG = "<<<<< Note Manager >>>>>";
     private static String FILE_NAME = "notes_file";
@@ -55,7 +55,7 @@ public class NoteManager {
         }
     }
 
-    public boolean setNote(int index, String title, String content, double latitude, double longitude) {
+    public int setNote(int index, String title, String content, double latitude, double longitude) {
         if(index < mAllNotes.size()) {
             boolean contentChanged = false;
             if(title == null || title.isEmpty()) {
@@ -181,7 +181,7 @@ public class NoteManager {
         }
     }
 
-    public boolean updateFromTmpFile() {
+    public int updateFromTmpFile() {
         try {
             FileInputStream fis = mContext.openFileInput(TMP_FILE_NAME);
             ObjectInputStream ois = new ObjectInputStream(fis);
@@ -209,5 +209,51 @@ public class NoteManager {
             e.printStackTrace();
         }
         return DO_NOT_NEED_UPDATE;
+    }
+
+    public static int saveChanges(int index, String title, String content, double latitude, double longitude) {
+        try {
+            ObjectInputStream ois = new ObjectInputStream(new FileInputStream(EXT_FILE_NAME));
+            long timestamp = ois.readLong();
+            ArrayList<NoteItem> allNotes = (ArrayList<NoteItem>)ois.readObject();
+            ois.close();
+
+            if(index < allNotes.size()) {
+                boolean contentChanged = false;
+                if (title == null || title.isEmpty()) {
+                    title = DEFAULT_TITLE;
+                }
+                if (allNotes.get(index).mTitle.compareTo(title) != 0) {
+                    contentChanged = true;
+                    allNotes.get(index).mTitle = title;
+                }
+                if (allNotes.get(index).mContent.compareTo(content) != 0) {
+                    contentChanged = true;
+                    allNotes.get(index).mContent = title;
+                }
+                if (!allNotes.get(index).mLatitude.equals(latitude)) {
+                    contentChanged = true;
+                    allNotes.get(index).mLatitude = latitude;
+                }
+                if (!allNotes.get(index).mLongitude.equals(longitude)) {
+                    contentChanged = true;
+                    allNotes.get(index).mLongitude = longitude;
+                }
+                if (contentChanged) {
+                    ObjectOutputStream oos = new ObjectOutputStream(new FileOutputStream(EXT_FILE_NAME));
+                    timestamp = System.currentTimeMillis();
+                    oos.writeLong(timestamp);
+                    oos.writeObject(allNotes);
+                    oos.close();
+                    return NEED_SYNCHRONIZE;
+                } else {
+                    return DO_NOT_NEED_SYNCHRONIZE;
+                }
+            }
+        } catch( ClassNotFoundException | IOException | ClassCastException e ) {
+            Log.d(TAG, "File saving failed!");
+            e.printStackTrace();
+        }
+        return DO_NOT_NEED_SYNCHRONIZE;
     }
 }

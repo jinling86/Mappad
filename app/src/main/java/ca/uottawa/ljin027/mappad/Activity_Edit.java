@@ -38,8 +38,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     private TextView mView_Longitude;
     private ImageButton mButton_Update;
 
-    private NoteManager mNotes = null;
-
+    private boolean mControlledFinish = false;
     private int mPosition;
     private String mTitle;
     private String mContent;
@@ -80,7 +79,6 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
             }
         });
 
-        mNotes = new NoteManager(this);
         Bundle extras = getIntent().getExtras();
         if (extras != null) {
             mPosition = extras.getInt(NoteManager.INDEX);
@@ -143,17 +141,21 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         int id = item.getItemId();
 
         if (id == R.id.action_done) {
-            readInput();
-
-            Intent mIntent = new Intent();
-            mIntent.putExtras(makeBundle());
-            setResult(RESULT_OK, mIntent);
-
-            finish();
+            Log.d(TAG, "Finish button pressed");
+            controlledFinish();
             return true;
         }
 
         return super.onOptionsItemSelected(item);
+    }
+
+    private void controlledFinish() {
+        readInput();
+        Intent mIntent = new Intent();
+        mIntent.putExtras(makeBundle());
+        setResult(RESULT_OK, mIntent);
+        mControlledFinish = true;
+        finish();
     }
 
     private void readInput() {
@@ -178,5 +180,24 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
             mNewLongitude = arg0.target.longitude;
             }
         });
+    }
+
+    @Override
+    public void onBackPressed() {
+        Log.d(TAG, "Back button pressed");
+        controlledFinish();
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if(!mControlledFinish) {
+            readInput();
+            if(NoteManager.saveChanges(mPosition, mTitle, mContent,  mLatitude, mLongitude)
+                    == NoteManager.NEED_SYNCHRONIZE) {
+                AWSManager.upload();
+            }
+        }
+
     }
 }

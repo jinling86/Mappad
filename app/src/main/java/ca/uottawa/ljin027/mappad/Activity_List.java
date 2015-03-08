@@ -31,8 +31,8 @@ import java.util.List;
 public class Activity_List extends ActionBarActivity {
 
     private static final int DELETE_ID = Menu.FIRST;
-    private static final int ACTIVITY_EDIT = 0;
-    private static final int ACTIVITY_MAP = 1;
+    private static final int ACTIVITY_EDIT = 100;
+    private static final int ACTIVITY_MAP = ACTIVITY_EDIT + 1;
 
     private NoteManager mNotes = null;
     private ListView mView_NoteList = null;
@@ -54,6 +54,8 @@ public class Activity_List extends ActionBarActivity {
         actionBar.setTitle(R.string.list_title);
         actionBar.setIcon(R.drawable.ic_pad);
 
+        AWSManager.setContext(this);
+
         // Store the handle
         mView_NoteList = (ListView)findViewById(R.id.note_list);
         mView_NoteHint = (TextView)findViewById(R.id.note_hint);
@@ -73,11 +75,11 @@ public class Activity_List extends ActionBarActivity {
             public void onReceive(Context context, Intent intent) {
                 int action = intent.getIntExtra(AWSService.ACTION, AWSService.ACTION_FAILED);
                 if (action == AWSService.ACTION_UPLOADED) {
-                    toast("Uploaded");
+                    Log.d(TAG, "Response from AWS upload service");
                 } else if (action == AWSService.ACTION_DOWNLOADED) {
-                    if(mNotes.updateFromTmpFile()) {
+                    Log.d(TAG, "Response from AWS download service");
+                    if(mNotes.updateFromTmpFile() == NoteManager.NEED_UPDATE) {
                         fillList();
-                        toast("Synchronized");
                     }
                 }
             }
@@ -121,7 +123,7 @@ public class Activity_List extends ActionBarActivity {
             .addApi(LocationServices.API)
             .build();
 
-        //AWSManager.download(this, mNotes.EXT_TMP_FILE_NAME);
+        AWSManager.download();
         Log.d(TAG, "Activity created");
     }
 
@@ -131,26 +133,16 @@ public class Activity_List extends ActionBarActivity {
         mGoogleApiClient.connect();
     }
 
+    protected void onResume() {
+        super.onResume();
+    }
+
     @Override
     protected void onStop() {
         super.onStop();
         if (mGoogleApiClient.isConnected()) {
             mGoogleApiClient.disconnect();
         }
-    }
-
-    @Override
-    protected void onPause() {
-        if (mGoogleApiClient != null) {
-            mGoogleApiClient.disconnect();
-        }
-        super.onPause();
-    }
-
-    @Override
-    protected void onResume() {
-        super.onResume();
-        mGoogleApiClient.connect();
     }
 
     private void fillList() {
@@ -218,6 +210,7 @@ public class Activity_List extends ActionBarActivity {
                 AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
                 mNotes.deleteNote(info.position);
                 fillList();
+                AWSManager.upload();
                 return true;
         }
         return super.onContextItemSelected(item);
@@ -226,18 +219,26 @@ public class Activity_List extends ActionBarActivity {
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
         super.onActivityResult(requestCode, resultCode, intent);
-        if(requestCode == ACTIVITY_EDIT && intent.getExtras() != null) {
-            Bundle bundle = intent.getExtras();
-            if(mNotes.setNote(
-                    bundle.getInt(NoteManager.INDEX),
-                    bundle.getString(NoteManager.TITLE),
-                    bundle.getString(NoteManager.CONTENT),
-                    bundle.getDouble(NoteManager.LATITUDE),
-                    bundle.getDouble(NoteManager.LONGITUDE))
-                    == NoteManager.NEED_SYNCHRONIZE) {
-                //AWSManager.upload(this, mNotes.EXT_NAME);
+        if (requestCode == ACTIVITY_EDIT) {
+            Log.d(TAG, "Return from Activity Edit");
+            if (intent != null) {
+                Bundle bundle = intent.getExtras();
+                if (mNotes.setNote(
+                        bundle.getInt(NoteManager.INDEX),
+                        bundle.getString(NoteManager.TITLE),
+                        bundle.getString(NoteManager.CONTENT),
+                        bundle.getDouble(NoteManager.LATITUDE),
+                        bundle.getDouble(NoteManager.LONGITUDE))
+                        == NoteManager.NEED_SYNCHRONIZE) {
+                    //AWSManager.upload();
+                    //fillList();
+                }
+            } else {
+                mNotes = new NoteManager(this);
                 fillList();
             }
+        } else if (requestCode == ACTIVITY_MAP) {
+            Log.d(TAG, "Return from Activity Map");
         }
     }
 
