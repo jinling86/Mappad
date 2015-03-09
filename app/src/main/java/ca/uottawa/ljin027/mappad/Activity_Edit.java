@@ -14,11 +14,9 @@ import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.GooglePlayServicesUtil;
-import com.google.android.gms.common.SignInButton;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
@@ -30,7 +28,11 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 /**
- * Created by Ling Jin on 04/03/2015.
+ * This class is implemented for CSI5175 Assignment 2
+ *
+ * @author      Ling Jin
+ * @version     1.0
+ * @since       04/03/2015
  */
 public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallback {
     private final String TAG = "<<<<< Activity Edit >>>>>";

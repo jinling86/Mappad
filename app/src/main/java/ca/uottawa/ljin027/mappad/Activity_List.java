@@ -30,6 +30,13 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 
+/**
+ * This class is implemented for CSI5175 Assignment 2
+ *
+ * @author      Ling Jin
+ * @version     1.0
+ * @since       04/03/2015
+ */
 public class Activity_List extends ActionBarActivity {
 
     private static final int DELETE_ID = Menu.FIRST;

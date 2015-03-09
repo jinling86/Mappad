@@ -58,18 +58,25 @@ public class AWSService extends IntentService {
     private IntentService mContext = null;
 
     /**
-     * Construct
+     * Construct the Android Service class
      */
     public AWSService() {
         super(TAG);
         mContext = this;
     }
 
+    /**
+     * Create a TransferManager using AWS Keys
+     */
     public void onCreate() {
         super.onCreate();
         mTransferManager = new TransferManager(new BasicAWSCredentials(ACCESS_KEY, SECRET_ACCESS_KEY));
     }
 
+    /**
+     * Receives and processes Intents
+     * @param intent Intent from Activities
+     */
     @Override
     public void onHandleIntent(Intent intent) {
         if (intent != null && intent.getAction() != null) {
@@ -83,6 +90,12 @@ public class AWSService extends IntentService {
         }
     }
 
+    /**
+     * Download the note file from the AWS S3 Server
+     * Send an Intent back to Activities as the result of the downloading
+     * The download failures can be captured by catching the exceptions
+     * @param file_name name of the file to be saved
+     */
     private void download(String file_name) {
         try {
             Download mDownload = mTransferManager.download(BUCKET_NAME, KEY_NAME, new File(file_name));
@@ -113,6 +126,12 @@ public class AWSService extends IntentService {
         }
     }
 
+    /**
+     * Upload the note file to the AWS S3 Server
+     * Send an Intent back to Activities as the result of the uploading
+     * The upload failures can be captured by catching the exceptions
+     * @param file_name name of the file to be read from
+     */
     private void upload(String file_name) {
         try {
             Upload mUpload = mTransferManager.upload(BUCKET_NAME, KEY_NAME, new File(file_name));
@@ -143,6 +162,11 @@ public class AWSService extends IntentService {
         }
     }
 
+    /**
+     * A helper method for constructing Intent
+     * The Intent will be broadcast to system, the List Activity will listen and process it
+     * @param result result code of the uploading/downloading operation
+     */
     private void sendResult(int result) {
         Intent postAWSIntent = new Intent(AWSManager.INTENT_PROCESS_RESULT);
         postAWSIntent.putExtra(AWSManager.EXTRA_AWS_RESULT, result);
