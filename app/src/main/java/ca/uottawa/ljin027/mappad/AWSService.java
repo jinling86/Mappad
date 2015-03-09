@@ -16,19 +16,50 @@ import com.amazonaws.services.s3.model.ProgressListener;
 import java.io.File;
 
 /**
- * Created by Ling Jin on 05/03/2015.
+ * This class is implemented for CSI5175 Assignment 2.
+ * This class implements an Android Service that manages the communication with Amazon Web Services
+ * Simple Storage Service service. The service runs in the background of the applications. The
+ * server cannot be communicated directed in Activity unless use an AsyncTask. Here, the
+ * TransferManager is used to manage the connection. The TransferManager is also suitable for
+ * transmitting large files.
+ * The file uploading or downloading is triggered by Intent of the Activities, the transmission
+ * results are sent back to the activities by broadcast the result Intent.
+ *
+ * PLEASE KEY THE ACCESS KEY AND SECRET ACCESS KEY SAFE!
+ *
+ * Here is some how-to documents:
+ * SDK Set-up: http://docs.aws.amazon.com/mobile/sdkforandroid/developerguide/setup.html
+ * SDK Developer guide: http://docs.aws.amazon.com/AmazonS3/latest/dev/Welcome.html
+ * IAM User Management: http://docs.aws.amazon.com/IAM/latest/UserGuide/IAM_Introduction.html
+ * An example of using AWS S3 Service in Java: https://github.com/aws/aws-sdk-java
+ * An example of using AWS S3 Service for developing Android: https://github.com/awslabs/aws-sdk-android-samples
+ * The latter example uses the IntentService class, but is more complicated.
+ *
+ * @author      Ling Jin
+ * @version     1.0
+ * @since       05/03/2015
  */
 public class AWSService extends IntentService {
+    /**
+     * Bucket (Server) name, key (file) name and access keys for the file save in AWS S3 Server
+     */
     private static final String BUCKET_NAME = "ca.uottawa.ljin027.mappad";
     private static final String KEY_NAME = "notes";
-    private static final String TAG = "<<<<< AWS Service >>>>>";
     private static final String ACCESS_KEY = "AKIAJWAGGRMXROXFWDEQ";
     private static final String SECRET_ACCESS_KEY = "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";
-
-
+    /**
+     * String constant for debugging
+     */
+    private static final String TAG = "<<<<< AWS Service >>>>>";
+    /**
+     * Reference of current TransferManager and current object, used in inner classes
+     */
     private TransferManager mTransferManager = null;
     private IntentService mContext = null;
 
+    /**
+     * Construct
+     */
     public AWSService() {
         super(TAG);
         mContext = this;
