@@ -28,7 +28,16 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 /**
- * This class is implemented for CSI5175 Assignment 2
+ * This class is implemented for CSI5175 Assignment 2.
+ * User uses this activity to edit note. The title is typed in and the location is selected by
+ * clicking the update button. When being clicked, the current location of marker in the Google Maps
+ * Fragment will be read. The modified contents are sent back to the List Activity when user click
+ * the done button in the menu or the back button of the on-screen buttons. The activity also saves
+ * the notes when the user switches out of it, in which case the List Activity does not have a
+ * chance to run.
+ *
+ * This is the URLs of Android activity life circle:
+ * http://developer.android.com/training/basics/activity-lifecycle/starting.html
  *
  * @author      Ling Jin
  * @version     1.0

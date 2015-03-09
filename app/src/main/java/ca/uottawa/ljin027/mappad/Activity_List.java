@@ -32,6 +32,29 @@ import java.util.List;
 
 /**
  * This class is implemented for CSI5175 Assignment 2
+ * This class displays the note list to user. It also supports a set of notes operations, which are
+ * adding new note by clicking add button, modifying existing note by clicking the list item,
+ * deleting a single note item when long touching the item, deleting mass notes by clicking the
+ * trash can button.
+ * This class sends Intents to Android AWS Service to synchronize the notes file.
+ * This class initializes the location service to receive location for editing.
+ *
+ * A note is immediately created and saved when a user clicks the add button. When he/she finishes
+ * editing, the contents of the modified note are sent back to current activity via Intent. The
+ * pre-save mechanism is implemented in case the application is put to background when in the Edit
+ * activity. If not being implemented, the index of the note item will turn out an error.
+ * When being created, the application tries to download the notes file from AWS S3 server. it will
+ * use the internal notes file if it fails to download the file or the downloaded file is older
+ * than the current file. When the notes have been modified, the Activity will wait until it is
+ * being stopped to upload the modified file.
+ * When the internet is out of usage, the application works as normal. However, it can neither
+ * upload the notes file to the AWS S3 server nor receive Google Maps figures. It will upload the
+ * notes file when the internet recovers.
+ * When current Android system does not support Google Play service, very noticing hints will be
+ * displayed to alert some services cannot be used. However, the application still works.
+ *
+ * The URL of the notepad example (the SQLite DB is abandoned):
+ * http://developer.android.com/training/notepad/index.html
  *
  * @author      Ling Jin
  * @version     1.0
