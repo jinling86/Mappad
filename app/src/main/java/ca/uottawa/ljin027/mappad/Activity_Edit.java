@@ -270,9 +270,9 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
      */
     private String getLatitude(double latitude) {
         if(latitude > 0) {
-            return String.format("%.5f° N", latitude);
+            return String.format("%9.5f° N", latitude);
         } else {
-            return String.format("%.5f° S", latitude);
+            return String.format("%9.5f° S", latitude);
         }
     }
 
@@ -282,9 +282,9 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
      */
     private String getLongitude(double longitude) {
         if(longitude > 0) {
-            return String.format("%.5f° E", longitude);
+            return String.format("%9.5f° E", longitude);
         } else {
-            return String.format("%.5f° W", longitude);
+            return String.format("%9.5f° W", longitude);
         }
     }
 
