@@ -37,7 +37,7 @@ public class AWSManager {
     private static Context MainActivityContext;
 
     /**
-     * Initializes the context, called by the main activity (List Activity)
+     * Initialize the context, called by the main activity (List Activity)
      * @param context this pointer of the main activity
      */
     public static void setContext(Context context) {
@@ -47,7 +47,7 @@ public class AWSManager {
     }
 
     /**
-     * Sends intent to the AWS service, uploads notes
+     * Send intent to the AWS service, uploads notes
      * The intent contains an extra, the name of the file that is used to store the notes
      */
     public static void upload() {
@@ -60,7 +60,7 @@ public class AWSManager {
     }
 
     /**
-     * Sends intent to the AWS service, downloads notes
+     * Send intent to the AWS service, downloads notes
      * The intent contain an extra, the name of the file that will be used to store the file from
      * S3 Server
      */

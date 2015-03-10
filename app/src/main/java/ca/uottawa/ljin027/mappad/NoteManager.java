@@ -76,7 +76,7 @@ public class NoteManager {
     private long mTimestamp;
 
     /**
-     * Initializes the name of the internal files, which needs the help of the context of the main
+     * Initialize the name of the internal files, which needs the help of the context of the main
      * activity. The files are only saved under the name of one Activity of the application. This
      * helps avoiding operations on external files. But it makes little hard to write the note file
      * in other Activity
@@ -226,7 +226,7 @@ public class NoteManager {
     }
 
     /**
-     * Returns the number of items of current note, used in iteration
+     * Return the number of items of current note, used in iteration
      * @return number of items
      */
     public int size() {

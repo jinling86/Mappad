@@ -74,7 +74,7 @@ public class AWSService extends IntentService {
     }
 
     /**
-     * Receives and processes Intents
+     * Receive and process Intents
      * @param intent Intent from Activities
      */
     @Override
