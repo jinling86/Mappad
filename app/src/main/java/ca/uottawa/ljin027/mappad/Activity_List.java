@@ -88,7 +88,7 @@ public class Activity_List extends ActionBarActivity {
     /**
      * Indicator for uploading the notes file
      */
-    private boolean mPendingUpload = false;
+    private boolean mAWSBusy = true;
     /**
      * Indicator for toasting messages
      */
@@ -103,6 +103,11 @@ public class Activity_List extends ActionBarActivity {
      * Debugging
      */
     private final String TAG = "<<<<< Activity List >>>>>";
+
+    ArrayList<String> mFilesToBeUploaded;
+    ArrayList<String> mFilesToBeDownloaded;
+    ArrayList<String> mFilesToBeDeleted;
+
 
     /**
      * Initialize UI, set buttons listeners, initialize location service, download the notes file
@@ -154,7 +159,8 @@ public class Activity_List extends ActionBarActivity {
                     .build();
         }
         // Download the notes from AWS S3 Server
-        AWSManager.download();
+        AWSManager.download(NoteManager.TMP_INDEX_FILE_NAME);
+        mAWSBusy = true;
         Log.d(TAG, "Activity created");
     }
 
@@ -185,9 +191,8 @@ public class Activity_List extends ActionBarActivity {
                 mGoogleApiClient.disconnect();
             }
         }
-        if(mPendingUpload) {
-            mPendingUpload = false;
-            AWSManager.upload();
+        if(mFilesToBeUploaded.size() != 0) {
+            AWSManager.upload(mFilesToBeUploaded.get(0));
         }
     }
 
@@ -281,7 +286,8 @@ public class Activity_List extends ActionBarActivity {
                 AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
                 mNotes.deleteNote(info.position);
                 fillList();
-                mPendingUpload = true;
+                updateNotesToBeSendList();
+                updateNotesToBeDeletedList();
                 return true;
         }
         return super.onContextItemSelected(item);
@@ -313,7 +319,7 @@ public class Activity_List extends ActionBarActivity {
                         bundle.getDouble(NoteManager.EXTRA_LATITUDE),
                         bundle.getDouble(NoteManager.EXTRA_LONGITUDE))
                         == NoteManager.NEED_SYNCHRONIZE) {
-                    mPendingUpload = true;
+                    updateNotesToBeSendList();
                     fillList();
                 }
             } else {
@@ -431,33 +437,181 @@ public class Activity_List extends ActionBarActivity {
     class AWSMessageReceiver extends BroadcastReceiver {
         @Override
         public void onReceive(Context context, Intent intent) {
+            String filename = null;
             switch (intent.getIntExtra(AWSManager.EXTRA_AWS_RESULT, AWSManager.AWS_FAILED)) {
                 case AWSManager.AWS_UPLOADED:
                     // File is uploaded successfully, toast a message
-                    Log.d(TAG, "Response from AWS service, uploaded");
-                    Toast.makeText(mActivity_List, "Uploaded", Toast.LENGTH_SHORT).show();
-                    break;
-                case AWSManager.AWS_UPLOAD_FAILED:
-                    // File is uploaded unsuccessfully, toast a message
-                    Log.d(TAG, "Response from AWS service, upload failed");
-                    toast("Try later");
-                    mPendingUpload = true;
+                    filename = intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME);
+                    onFileUploaded(filename);
                     break;
                 case AWSManager.AWS_DOWNLOADED:
-                    // File is downloaded successfully, read the file. If the online file is newer,
-                    // display the new note items
-                    Log.d(TAG, "Response from AWS service, downloaded");
-                    toast("Synchronized");
-                    if(mNotes.updateFromTmpFile() == NoteManager.NEED_UPDATE) {
-                        fillList();
-                    }
+                    // File is downloaded successfully, read the file
+                    filename = intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME);
+                    onFileDownloaded(filename);
+                    break;
+                case AWSManager.AWS_DELETED:
+                    // File is downloaded successfully, read the file
+                    filename = intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME);
+                    onFileDeleted(filename);
                     break;
                 case AWSManager.AWS_DOWNLOAD_FAILED:
+                case AWSManager.AWS_UPLOAD_FAILED:
                 case AWSManager.AWS_FAILED:
                     Log.d(TAG, "Response from AWS service, failed");
                     break;
             }
         }
+    }
+
+    void onFileDeleted(String filename) {
+        if(filename == null) {
+            Log.d(TAG, "Response from AWS delete service, argument error, no filename returned");
+            return;
+        }
+        Log.d(TAG, "Response from AWS service, deleted " + filename);
+        if(mFilesToBeDeleted.size() == 0) {
+            Log.d(TAG, "Response from AWS delete service, argument error, extra file uploaded");
+            return;
+        }
+        if(filename.compareTo(mFilesToBeDeleted.get(0)) != 0) {
+            Log.d(TAG, "Response from AWS delete service, argument error, filename miss match");
+            return;
+        }
+        if(mFilesToBeDeleted.size() != 0) {
+            // Delete next file
+            deleteTopmostNote();
+        } else {
+            Log.d(TAG, "All files deleted, synchronized");
+            toast("Synchronized");
+            mAWSBusy = false;
+        }
+    }
+
+    void onFileUploaded(String filename) {
+        if(filename == null) {
+            Log.d(TAG, "Response from AWS upload service, argument error, no filename returned");
+            return;
+        }
+        Log.d(TAG, "Response from AWS service, uploaded " + filename);
+        if(mFilesToBeUploaded.size() == 0) {
+            Log.d(TAG, "Response from AWS upload service, argument error, extra file uploaded");
+            return;
+        }
+        if(filename.compareTo(mFilesToBeUploaded.get(0)) != 0) {
+            Log.d(TAG, "Response from AWS upload service, argument error, filename miss match");
+            return;
+        }
+        mNotes.confirmSend(filename);
+        mFilesToBeUploaded.remove(0);
+        // Send next file
+        if(mFilesToBeUploaded.size() != 0) {
+            sendTopmostNote();
+            return;
+        }
+        // Delete next file
+        if(mFilesToBeDeleted.size() != 0) {
+            deleteTopmostNote();
+            return;
+        }
+        Log.d(TAG, "All files deleted, synchronized");
+        toast("Synchronized");
+        mAWSBusy = false;
+    }
+
+    void onFileDownloaded(String filename) {
+        if(filename == null) {
+            Log.d(TAG, "Response from AWS download service, argument error, no filename returned");
+            return;
+        }
+        Log.d(TAG, "Response from AWS service, downloaded " + filename);
+        if(filename.compareTo(NoteManager.INDEX_FILE_NAME) == 0) {
+            // If it is the index file, get all the files need to be further received
+            mFilesToBeDownloaded = mNotes.getFileNamesForReceiving();
+            if(mFilesToBeDownloaded.size() != 0) {
+                // Request one more file
+                receiveTopmostNote();
+                return;
+            }
+
+            // No file need to receive, check upload files
+            Log.d(TAG, "All files downloaded, begin upload process");
+            mFilesToBeUploaded = mNotes.getFileNamesForSending();
+            if(mFilesToBeUploaded.size() != 0) {
+                // Upload a file
+                sendTopmostNote();
+                return;
+            }
+
+            // No file need to be uploaded, check the files to be deleted
+            Log.d(TAG, "All files uploaded, begin delete process");
+            mFilesToBeDeleted = mNotes.getFileNamesForDeleting();
+            if(mFilesToBeDeleted.size() != 0) {
+                deleteTopmostNote();
+                return;
+            }
+            // All done
+            Log.d(TAG, "All files deleted, synchronized");
+            toast("Synchronized");
+        } else {
+            if( mFilesToBeDownloaded.size() == 0) {
+                Log.d(TAG, "Response from AWS download service, argument error, extra file downloaded");
+                return;
+            }
+            if(mFilesToBeDownloaded.get(0).compareTo(filename) != 0) {
+                Log.d(TAG, "Response from AWS download service, argument error, filename miss match");
+                return;
+            }
+            // Confirm the received file, update ListView
+            mNotes.confirmReceive(filename);
+            fillList();
+            mFilesToBeDownloaded.remove(0);
+            // Try to download next file
+            if(mFilesToBeDownloaded.size() != 0) {
+                receiveTopmostNote();
+                return;
+            }
+            // Try to upload a file
+            Log.d(TAG, "All files downloaded, begin upload process");
+            mFilesToBeUploaded = mNotes.getFileNamesForSending();
+            if(mFilesToBeUploaded.size() != 0) {
+                sendTopmostNote();
+                return;
+            }
+            Log.d(TAG, "All files uploaded, begin delete process");
+            // Try to delete a file
+            mFilesToBeDeleted = mNotes.getFileNamesForDeleting();
+            if(mFilesToBeDeleted.size() != 0) {
+                deleteTopmostNote();
+                return;
+            }
+            Log.d(TAG, "All files deleted, synchronized");
+            toast("Synchronized");
+            mAWSBusy = false;
+        }
+    }
+
+    void updateNotesToBeDeletedList() {
+        if(!mAWSBusy) {
+            deleteTopmostNote();
+        }
+    }
+
+    void updateNotesToBeSendList() {
+        if(!mAWSBusy) {
+            sendTopmostNote();
+        }
+    }
+
+    void sendTopmostNote() {
+        AWSManager.upload(mFilesToBeUploaded.get(0));
+    }
+
+    void receiveTopmostNote() {
+        AWSManager.download(mFilesToBeDownloaded.get(0));
+    }
+
+    void deleteTopmostNote() {
+        AWSManager.delete(mFilesToBeDeleted.get(0));
     }
 
     /**
@@ -496,9 +650,10 @@ public class Activity_List extends ActionBarActivity {
                 CheckBox cb = (CheckBox) mView_NoteList.getChildAt(position).findViewById(R.id.checkBox_delete);
                 if( cb.isChecked() ) {
                     mNotes.deleteNote(position);
+                    updateNotesToBeSendList();
+                    updateNotesToBeDeletedList();
                 }
             }
-            mPendingUpload = true;
             mIsDeleting = false;
             fillList();
         }

@@ -13,7 +13,7 @@
         android:layout_height="48dp"
         android:layout_margin="8dp"
         android:singleLine="true"
-        android:hint="Enter Title Here"
+        android:hint="Enter Label Here"
         android:maxLength="24"
         android:background="@color/title"
         android:textColor="@color/black"

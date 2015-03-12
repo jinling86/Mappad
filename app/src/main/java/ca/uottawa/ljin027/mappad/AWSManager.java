@@ -24,9 +24,12 @@ public class AWSManager {
     public static final int AWS_UPLOAD_FAILED = 1;
     public static final int AWS_DOWNLOADED = 2;
     public static final int AWS_DOWNLOAD_FAILED = 3;
-    public static final int AWS_FAILED = 4;
+    public static final int AWS_DELETED = 4;
+    public static final int AWS_DELETE_FAILED = 5;
+    public static final int AWS_FAILED = 6;
     public static final String INTENT_UPLOAD = "upload";
     public static final String INTENT_DOWNLOAD = "download";
+    public static final String INTENT_DELETE = "delete";
     public static final String INTENT_PROCESS_RESULT = "process_aws_result";
 
     /**
@@ -50,11 +53,11 @@ public class AWSManager {
      * Send intent to the AWS service, uploads notes
      * The intent contains an extra, the name of the file that is used to store the notes
      */
-    public static void upload() {
+    public static void upload(String filename) {
         if(MainActivityContext != null) {
             Intent intent = new Intent(MainActivityContext, AWSService.class);
             intent.setAction(INTENT_UPLOAD);
-            intent.putExtra(EXTRA_INTERNAL_FILENAME, NoteManager.EXT_FILE_NAME);
+            intent.putExtra(EXTRA_INTERNAL_FILENAME, filename);
             MainActivityContext.startService(intent);
         }
     }
@@ -64,11 +67,20 @@ public class AWSManager {
      * The intent contain an extra, the name of the file that will be used to store the file from
      * S3 Server
      */
-    public static void download() {
+    public static void download(String filename) {
         if(MainActivityContext != null) {
             Intent intent = new Intent(MainActivityContext, AWSService.class);
             intent.setAction(INTENT_DOWNLOAD);
-            intent.putExtra(EXTRA_INTERNAL_FILENAME, NoteManager.EXT_TMP_FILE_NAME);
+            intent.putExtra(EXTRA_INTERNAL_FILENAME, filename);
+            MainActivityContext.startService(intent);
+        }
+    }
+
+    public static void delete(String filename) {
+        if(MainActivityContext != null) {
+            Intent intent = new Intent(MainActivityContext, AWSService.class);
+            intent.setAction(INTENT_DELETE);
+            intent.putExtra(EXTRA_INTERNAL_FILENAME, filename);
             MainActivityContext.startService(intent);
         }
     }
