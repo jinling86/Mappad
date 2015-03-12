@@ -92,7 +92,7 @@ public class AWSService extends IntentService {
                 upload(intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME));
             } else if (intent.getAction().equals(AWSManager.INTENT_DELETE) &&
                     intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME) != null) {
-                new DeleteNote().execute(intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME));
+                delete(intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME));
             }
         }
     }
@@ -103,17 +103,17 @@ public class AWSService extends IntentService {
      * The download failures can be captured by catching the exceptions
      * @param file_name name of the file to be saved
      */
-    private void download(String file_name) {
-        final String internalFileName = file_name;
+    private void download(final String file_name) {
         try {
-            String fullFileName = NoteManager.EXT_FILE_DIR + internalFileName;
-            Download mDownload = mTransferManager.download(BUCKET_NAME, internalFileName, new File(fullFileName));
+            String cloudFilename = NoteManager.getTmpName(file_name);
+            String internalFilename = NoteManager.getTmpFullName(file_name);
+            Download mDownload = mTransferManager.download(BUCKET_NAME, cloudFilename, new File(internalFilename));
             mDownload.addProgressListener(new ProgressListener() {
                 @Override
                 public void progressChanged(ProgressEvent event) {
                     if (event.getEventCode() == ProgressEvent.COMPLETED_EVENT_CODE) {
                         Log.d(TAG, "Downloaded!");
-                        sendResult(AWSManager.AWS_DOWNLOADED, internalFileName);
+                        sendResult(AWSManager.AWS_DOWNLOADED, file_name);
                     }
                 }
             });
@@ -125,13 +125,19 @@ public class AWSService extends IntentService {
             Log.d(TAG, "AWS Error Code:   " + ase.getErrorCode());
             Log.d(TAG, "Error Type:       " + ase.getErrorType());
             Log.d(TAG, "Request ID:       " + ase.getRequestId());
-            sendResult(AWSManager.AWS_DOWNLOAD_FAILED, internalFileName);
+
+            if (ase.getStatusCode() == 404) {
+                sendResult(AWSManager.AWS_DOWNLOAD_NO_FILE, file_name);
+            } else {
+                sendResult(AWSManager.AWS_DOWNLOAD_FAILED, file_name);
+            }
+
         } catch ( AmazonClientException ace ) {
             Log.d(TAG, "Caught an AmazonClientException, which means the client encountered "
                     + "a serious internal problem while trying to communicate with S3, "
                     + "such as not being able to access the network.");
             Log.d(TAG, "Error Message: " + ace.getMessage());
-            sendResult(AWSManager.AWS_DOWNLOAD_FAILED, internalFileName);
+            sendResult(AWSManager.AWS_DOWNLOAD_FAILED, file_name);
         }
     }
 
@@ -141,24 +147,19 @@ public class AWSService extends IntentService {
      * The upload failures can be captured by catching the exceptions
      * @param file_name name of the file to be read from
      */
-    private void upload(String file_name) {
-        final String internalFileName = file_name;
+    private void upload(final String file_name) {
         try {
-            String fullFileName = NoteManager.EXT_FILE_DIR + internalFileName;
-            Upload mUpload = null;
             // Change the index file name when upload it, so the name of the downloaded file can
             // be used directly
-            if(internalFileName.compareTo(NoteManager.INDEX_FILE_NAME) == 0)
-                mUpload = mTransferManager.upload(BUCKET_NAME, NoteManager.TMP_INDEX_FILE_NAME, new File(fullFileName));
-            else
-                mUpload = mTransferManager.upload(BUCKET_NAME, internalFileName, new File(fullFileName));
-
+            String internalFilename = NoteManager.getFullName(file_name);
+            String cloudFilename = NoteManager.getTmpName(file_name);
+            Upload mUpload = mTransferManager.upload(BUCKET_NAME, cloudFilename, new File(internalFilename));
             mUpload.addProgressListener(new ProgressListener() {
                 @Override
                 public void progressChanged(ProgressEvent event) {
                     if (event.getEventCode() == ProgressEvent.COMPLETED_EVENT_CODE) {
                         Log.d(TAG, "Uploaded!");
-                        sendResult(AWSManager.AWS_UPLOADED, internalFileName);
+                        sendResult(AWSManager.AWS_UPLOADED, file_name);
                     }
                 }
             });
@@ -170,13 +171,36 @@ public class AWSService extends IntentService {
             Log.d(TAG, "AWS Error Code:   " + ase.getErrorCode());
             Log.d(TAG, "Error Type:       " + ase.getErrorType());
             Log.d(TAG, "Request ID:       " + ase.getRequestId());
-            sendResult(AWSManager.AWS_UPLOAD_FAILED, internalFileName);
+            sendResult(AWSManager.AWS_UPLOAD_FAILED, file_name);
         } catch ( AmazonClientException ace ) {
             Log.d(TAG, "Caught an AmazonClientException, which means the client encountered "
                     + "a serious internal problem while trying to communicate with S3, "
                     + "such as not being able to access the network.");
             Log.d(TAG, "Error Message: " + ace.getMessage());
-            sendResult(AWSManager.AWS_UPLOAD_FAILED, internalFileName);
+            sendResult(AWSManager.AWS_UPLOAD_FAILED, file_name);
+        }
+    }
+
+    private void delete(final String file_name) {
+        try {
+            String cloudFilename = NoteManager.getTmpName(file_name);
+            mS3Client.deleteObject(BUCKET_NAME, cloudFilename);
+            sendResult(AWSManager.AWS_DELETED, file_name);
+        } catch ( AmazonServiceException ase ) {
+            Log.d(TAG, "Caught an AmazonServiceException, which means your request made it "
+                    + "to Amazon S3, but was rejected with an error response for some reason.");
+            Log.d(TAG, "Error Message:    " + ase.getMessage());
+            Log.d(TAG, "HTTP Status Code: " + ase.getStatusCode());
+            Log.d(TAG, "AWS Error Code:   " + ase.getErrorCode());
+            Log.d(TAG, "Error Type:       " + ase.getErrorType());
+            Log.d(TAG, "Request ID:       " + ase.getRequestId());
+            sendResult(AWSManager.AWS_DELETE_FAILED, file_name);
+        } catch ( AmazonClientException ace ) {
+            Log.d(TAG, "Caught an AmazonClientException, which means the client encountered "
+                    + "a serious internal problem while trying to communicate with S3, "
+                    + "such as not being able to access the network.");
+            Log.d(TAG, "Error Message: " + ace.getMessage());
+            sendResult(AWSManager.AWS_DELETE_FAILED, file_name);
         }
     }
 
@@ -192,6 +216,7 @@ public class AWSService extends IntentService {
         mContext.sendBroadcast(postAWSIntent);
     }
 
+    /*
     private class DeleteNote extends AsyncTask<Object, Void, Boolean> {
         String mFilename = null;
         @Override
@@ -226,4 +251,5 @@ public class AWSService extends IntentService {
             }
         }
     }
+    */
 }

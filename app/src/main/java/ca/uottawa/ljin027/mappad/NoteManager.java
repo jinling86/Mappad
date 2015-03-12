@@ -54,54 +54,41 @@ public class NoteManager {
      * String constants for debugging and file storage
      */
     private static String TAG = "<<<<< Note Manager >>>>>";
-    private static String EXT_TMP_TAG = "_tmp";
 
+    public static String TMP_TAG = "_tmp";
     public static String INDEX_FILE_NAME = "notes_file";
     public static String EXT_FILE_DIR = null;
-    public static String TMP_INDEX_FILE_NAME = null;
 
     /**
      * this reference, used by inner classes
      */
     private Context mContext = null;
 
-    /**
-     */
     private ArrayList<NoteItem> mAllNotes = null;
     private ArrayList<NoteIndex> mNoteIndex = null;
     private ArrayList<Integer> mRealIndex = null;
 
-    /**
-     * Initialize the name of the internal files, which needs the help of the context of the main
-     * activity. The files are only saved under the name of one Activity of the application. This
-     * helps avoiding operations on external files. But it makes little hard to write the note file
-     * in other Activity
-     * The construct also read the file into memory
-     * @param context context of the main activity
-     */
     public NoteManager(Context context) {
         mContext = context;
         read();
-        if(mNoteIndex == null) {
+        if(mNoteIndex == null || mAllNotes == null) {
             mNoteIndex = new ArrayList<NoteIndex>();
-        }
-        if(mAllNotes == null) {
             mAllNotes = new ArrayList<NoteItem>();
-        }
-        if(TMP_INDEX_FILE_NAME == null) {
-            TMP_INDEX_FILE_NAME = INDEX_FILE_NAME + EXT_TMP_TAG;
+            adjustRealIndex();
         }
         if(EXT_FILE_DIR == null) {
             EXT_FILE_DIR = mContext.getFilesDir().getPath();
         }
     }
 
-    /**
-     * Get the full name of the note index file
-     * @return path name and file name of the note index file
-     */
-    public String getTmpIndexFileName() {
-        return mContext.getFilesDir() + "/" + TMP_INDEX_FILE_NAME;
+    public static String getTmpName(String internalName) {
+        return internalName + TMP_TAG;
+    }
+    public static String getTmpFullName(String internalName) {
+        return EXT_FILE_DIR + "/" + internalName + TMP_TAG;
+    }
+    public static String getFullName(String internalName) {
+        return EXT_FILE_DIR + "/" + internalName;
     }
 
     /**
@@ -114,13 +101,20 @@ public class NoteManager {
      * @return if the note is modified, saves the note on disk and notifies the caller to upload it
      */
     public int setNote(int index, String title, String content, double latitude, double longitude) {
+        if(index >= mRealIndex.size()) {
+            Log.d(TAG, "Error, index does not exist!");
+            return DO_NOT_NEED_SYNCHRONIZE;
+        }
         int realIndex = mRealIndex.get(index);
         if(realIndex < mAllNotes.size()) {
+            // Data to be modified
+            NoteIndex noteIndex = mNoteIndex.get(realIndex);
+            NoteItem noteItem = mAllNotes.get(realIndex);
+            // Check if the note has been changed
             boolean contentChanged = false;
             if(title == null || title.isEmpty()) {
                 title = DEFAULT_TITLE;
             }
-            NoteItem noteItem = mAllNotes.get(realIndex);
             if(noteItem.mTitle.compareTo(title) != 0) {
                 contentChanged = true;
                 noteItem.mTitle = title;
@@ -139,11 +133,9 @@ public class NoteManager {
             }
             if(contentChanged) {
                 noteItem.mModifiedTime = System.currentTimeMillis();
-                NoteIndex noteIndex = mNoteIndex.get(realIndex);
                 noteIndex.mModifiedTime = noteItem.mModifiedTime;
                 noteIndex.mModified = true;
                 noteIndex.mSynchronized = false;
-
                 save();
                 return NEED_SYNCHRONIZE;
             } else {
@@ -167,7 +159,10 @@ public class NoteManager {
      * @return the current storage position of the newly added note
      */
     public int addNote(String title, String content, double latitude, double longitude) {
+        // Add a note and an index
         NoteItem newNote = new NoteItem();
+        NoteIndex newIndex = new NoteIndex();
+        // Change the empty title
         if(title == null || title.isEmpty()) {
             title = DEFAULT_TITLE;
         }
@@ -180,7 +175,6 @@ public class NoteManager {
         newNote.mInternalName = newNote.mModifiedTime.toString();
         mAllNotes.add(newNote);
 
-        NoteIndex newIndex = new NoteIndex();
         newIndex.mCreatedTime = newNote.mCreatedTime;
         newIndex.mModifiedTime = newNote.mModifiedTime;
         newIndex.mFileName = newIndex.mModifiedTime.toString();
@@ -200,10 +194,15 @@ public class NoteManager {
      * @return note title
      */
     public String getTitle(int index) {
+        if(index >= mRealIndex.size()) {
+            Log.d(TAG, "Error, index does not exist!");
+            return null;
+        }
         int realIndex = mRealIndex.get(index);
         if(realIndex < mAllNotes.size()) {
             return mAllNotes.get(realIndex).mTitle;
         } else {
+            Log.d(TAG, "Error, note does not exist!");
             return null;
         }
     }
@@ -213,10 +212,15 @@ public class NoteManager {
      * @return note content, useless now
      */
     public String getContent(int index) {
+        if(index >= mRealIndex.size()) {
+            Log.d(TAG, "Error, index does not exist!");
+            return null;
+        }
         int realIndex = mRealIndex.get(index);
         if(realIndex < mAllNotes.size()) {
             return mAllNotes.get(realIndex).mContent;
         } else {
+            Log.d(TAG, "Error, note does not exist!");
             return null;
         }
     }
@@ -226,10 +230,15 @@ public class NoteManager {
      * @return stored latitude
      */
     public double getLatitude(int index) {
+        if(index >= mRealIndex.size()) {
+            Log.d(TAG, "Error, index does not exist!");
+            return 0.0;
+        }
         int realIndex = mRealIndex.get(index);
         if(realIndex < mAllNotes.size()) {
             return mAllNotes.get(realIndex).mLatitude;
         } else {
+            Log.d(TAG, "Error, note does not exist!");
             return 0.0;
         }
     }
@@ -239,10 +248,15 @@ public class NoteManager {
      * @return stored longitude
      */
     public double getLongitude(int index) {
+        if(index >= mRealIndex.size()) {
+            Log.d(TAG, "Error, index does not exist!");
+            return 0.0;
+        }
         int realIndex = mRealIndex.get(index);
         if(realIndex < mAllNotes.size()) {
             return mAllNotes.get(realIndex).mLongitude;
         } else {
+            Log.d(TAG, "Error, note does not exist!");
             return 0.0;
         }
     }
@@ -252,6 +266,10 @@ public class NoteManager {
      * @param index deleting item storage position
      */
     public void deleteNote(int index) {
+        if(index >= mRealIndex.size()) {
+            Log.d(TAG, "Error, index does not exist!");
+            return;
+        }
         int realIndex = mRealIndex.get(index);
         if(realIndex < mNoteIndex.size()) {
             NoteIndex noteIndex = mNoteIndex.get(realIndex);
@@ -259,6 +277,7 @@ public class NoteManager {
 
             noteIndex.mDeleted = true;
             noteIndex.mModified = true;
+            noteIndex.mSynchronized = false;
             noteIndex.mModifiedTime = System.currentTimeMillis();
             noteItem.mModifiedTime = noteIndex.mModifiedTime;
 
@@ -310,10 +329,11 @@ public class NoteManager {
             ObjectOutputStream i_oos = new ObjectOutputStream(i_fos);
             i_oos.writeObject(mNoteIndex);
             i_oos.close();
-            Log.d(TAG, "List item saved");
+            Log.d(TAG, "Notes saved");
         } catch( IOException e ) {
             e.printStackTrace();
             Log.d(TAG, "Saving notes failed!");
+            errorRecovery();
         }
     }
 
@@ -341,10 +361,17 @@ public class NoteManager {
         } catch( ClassNotFoundException | IOException | ClassCastException e ) {
             Log.d(TAG, "Recovering notes failed!");
             e.printStackTrace();
-            // Discard all notes if any of the read operations fails
-            mNoteIndex = null;
-            mAllNotes = null;
+            errorRecovery();
         }
+    }
+
+    private void errorRecovery() {
+        // What should I do... let's make things worse
+        // Discard all notes if any of the read/write operations fails
+        mNoteIndex = new ArrayList<NoteIndex>();
+        mAllNotes = new ArrayList<NoteItem>();
+        mRealIndex = null;
+        adjustRealIndex();
     }
 
     /**
@@ -354,13 +381,13 @@ public class NoteManager {
     public ArrayList<String> getFileNamesForSending() {
         ArrayList<String> fileNames = new ArrayList<String>();
         for(NoteIndex index : mNoteIndex) {
-            if(!index.mSynchronized) {
-                fileNames.add(EXT_FILE_DIR + index.mFileName);
+            if(!index.mSynchronized && !index.mDeleted) {
+                fileNames.add(index.mFileName);
             }
         }
         // Add the index file if any file is to be sent
         if(fileNames.size() != 0) {
-            fileNames.add(EXT_FILE_DIR + INDEX_FILE_NAME);
+            fileNames.add(INDEX_FILE_NAME);
         }
         return fileNames;
     }
@@ -372,7 +399,7 @@ public class NoteManager {
     public ArrayList<String> getFileNamesForReceiving() {
         ArrayList<String> fileNames = new ArrayList<String>();
         try {
-            FileInputStream fis = mContext.openFileInput(TMP_INDEX_FILE_NAME);
+            FileInputStream fis = mContext.openFileInput(getTmpName(INDEX_FILE_NAME));
             ObjectInputStream ois = new ObjectInputStream(fis);
             ArrayList<NoteIndex> cloudIndex = (ArrayList<NoteIndex>)ois.readObject();
             ois.close();
@@ -382,21 +409,38 @@ public class NoteManager {
             while(iLocal < mNoteIndex.size() && iCloud < cloudIndex.size()) {
                 NoteIndex localItem = mNoteIndex.get(iLocal);
                 NoteIndex cloudItem = cloudIndex.get(iCloud);
-                if(localItem.mCreatedTime.compareTo(cloudItem.mCreatedTime) == 0) {
+                int cTimeCompResult = localItem.mCreatedTime.compareTo(cloudItem.mCreatedTime);
+                if(cTimeCompResult == 0) {
                     // Same file, compare modification time
-                    if(cloudItem.mModifiedTime.compareTo(localItem.mModifiedTime) > 0) {
+                    int mTimeCompResult = cloudItem.mModifiedTime.compareTo(localItem.mModifiedTime);
+                    if(mTimeCompResult > 0) {
+                        // The cloud file is newer, download it
                         fileNames.add(cloudItem.mFileName);
+                    } else if(mTimeCompResult < 0) {
+                        // The cloud file is out of date, upload it
+                        localItem.mSynchronized = false;
                     }
-                } else if (localItem.mCreatedTime.compareTo(cloudItem.mCreatedTime) > 0) {
+                    iCloud++;
+                    iLocal++;
+                } else if (cTimeCompResult > 0) {
                     // A file is deleted/missed in local
                     fileNames.add(cloudItem.mFileName);
                     iCloud++;
                 } else {
-                    // A file only exists in the cell phone, synchronize it if it is not a deleted
-                    // file
-                    if(!localItem.mDeleted)
-                        localItem.mSynchronized = false;
+                    // A file only exists in the cell phone, synchronize it
+                    localItem.mSynchronized = false;
+                    iLocal++;
                 }
+            }
+            while(iLocal < mNoteIndex.size()) {
+                // Miss cloud files
+                mNoteIndex.get(iLocal).mSynchronized = false;
+                iLocal++;
+            }
+            while(iCloud < cloudIndex.size()) {
+                // Miss local files
+                fileNames.add(cloudIndex.get(iCloud).mFileName);
+                iCloud++;
             }
         } catch( ClassNotFoundException | IOException | ClassCastException e ) {
             Log.d(TAG, "Recovering cloud notes failed!");
@@ -409,17 +453,20 @@ public class NoteManager {
         ArrayList<String> fileNames = new ArrayList<String>();
         for(NoteIndex index : mNoteIndex) {
             if(index.mDeleted) {
-                fileNames.add(EXT_FILE_DIR + index.mFileName);
+                fileNames.add(index.mFileName);
             }
+        }
+        // Add the index file if any file is to be sent
+        if(fileNames.size() != 0) {
+            fileNames.add(INDEX_FILE_NAME);
         }
         return fileNames;
     }
 
     public void confirmSend(String filename) {
         for(NoteIndex index: mNoteIndex) {
-            if(filename.compareTo(EXT_FILE_DIR + index.mFileName) == 0) {
+            if(filename.compareTo(index.mFileName) == 0) {
                 index.mSynchronized = true;
-                index.mModified = true;
                 save();
             }
         }
@@ -429,7 +476,7 @@ public class NoteManager {
         mAllNotes.add(addPosition, noteItem);
         NoteIndex newIndex = new NoteIndex();
         newIndex.mFileName = noteItem.mInternalName;
-        newIndex.mModifiedTime = noteItem.mModifiedTime;
+        newIndex.mCreatedTime = noteItem.mCreatedTime;
         newIndex.mModifiedTime = noteItem.mModifiedTime;
         newIndex.mModified = true;
         newIndex.mSynchronized = true;
@@ -439,19 +486,22 @@ public class NoteManager {
 
     public void confirmReceive(String filename) {
         try {
-            FileInputStream fis = mContext.openFileInput(filename);
+            FileInputStream fis = mContext.openFileInput(getTmpName(filename));
             ObjectInputStream ois = new ObjectInputStream(fis);
             NoteItem aNote = (NoteItem)ois.readObject();
             ois.close();
 
             boolean addToLast = true;
             for(int i = 0; i < mNoteIndex.size(); i++) {
-                if(mNoteIndex.get(i).mCreatedTime.compareTo(aNote.mCreatedTime) == 0) {
+                int cTimeCompResult = mNoteIndex.get(i).mCreatedTime.compareTo(aNote.mCreatedTime);
+                if(cTimeCompResult == 0) {
                     mAllNotes.set(i, aNote);
                     mNoteIndex.get(i).mModifiedTime = aNote.mModifiedTime;
+                    mNoteIndex.get(i).mSynchronized = true;
+                    mNoteIndex.get(i).mModified = true;
                     addToLast = false;
                     break;
-                } else if(mNoteIndex.get(i).mCreatedTime.compareTo(aNote.mCreatedTime) > 0) {
+                } else if(cTimeCompResult > 0) {
                     addNoteFromExternal(i, aNote);
                     adjustRealIndex();
                     addToLast = false;
@@ -462,7 +512,7 @@ public class NoteManager {
                 addNoteFromExternal(mNoteIndex.size(), aNote);
             }
             save();
-            File localFile = new File(filename);
+            File localFile = new File(getTmpFullName(filename));
             localFile.deleteOnExit();
         } catch( ClassNotFoundException | IOException | ClassCastException e ) {
             Log.d(TAG, "Recovering cloud notes failed!");
@@ -482,8 +532,9 @@ public class NoteManager {
         mAllNotes.remove(position);
         // Adjust the real position of the note
         adjustRealIndex();
-        File localFile = new File(filename);
+        File localFile = new File(getFullName(filename));
         localFile.deleteOnExit();
+        save();
     }
 
     /**
@@ -499,14 +550,14 @@ public class NoteManager {
      */
     public static void saveChanges(int realIndex, String title, String content, double latitude, double longitude) {
         try {
-            ObjectInputStream i_ois = new ObjectInputStream(new FileInputStream(EXT_FILE_DIR + INDEX_FILE_NAME));
+            ObjectInputStream i_ois = new ObjectInputStream(new FileInputStream(getFullName(INDEX_FILE_NAME)));
             ArrayList<NoteIndex> allIndex = (ArrayList<NoteIndex>)i_ois.readObject();
             i_ois.close();
             if(realIndex >= allIndex.size()) {
                 Log.d(TAG, "Index error in saveChanges()");
                 return;
             }
-            String noteFilename = EXT_FILE_DIR + allIndex.get(realIndex).mFileName;
+            String noteFilename = getFullName(allIndex.get(realIndex).mFileName);
             ObjectInputStream n_ois = new ObjectInputStream(new FileInputStream(noteFilename));
             NoteItem aNote = (NoteItem)n_ois.readObject();
             n_ois.close();
@@ -535,10 +586,10 @@ public class NoteManager {
                 aNote.mModifiedTime = System.currentTimeMillis();
                 NoteIndex noteIndex = allIndex.get(realIndex);
                 noteIndex.mModifiedTime = aNote.mModifiedTime;
-                noteIndex.mModified = true;
+                noteIndex.mModified = false;
                 noteIndex.mSynchronized = false;
 
-                ObjectOutputStream i_oos = new ObjectOutputStream(new FileOutputStream(EXT_FILE_DIR + INDEX_FILE_NAME));
+                ObjectOutputStream i_oos = new ObjectOutputStream(new FileOutputStream(getFullName(INDEX_FILE_NAME)));
                 i_oos.writeObject(allIndex);
                 i_oos.close();
                 ObjectOutputStream n_oos = new ObjectOutputStream(new FileOutputStream(noteFilename));

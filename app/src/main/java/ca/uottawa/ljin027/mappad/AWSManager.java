@@ -1,7 +1,10 @@
 package ca.uottawa.ljin027.mappad;
 
+import android.app.AlarmManager;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.os.SystemClock;
 
 /**
  * This class is implement for CSI5175 Assignment 2.
@@ -24,9 +27,10 @@ public class AWSManager {
     public static final int AWS_UPLOAD_FAILED = 1;
     public static final int AWS_DOWNLOADED = 2;
     public static final int AWS_DOWNLOAD_FAILED = 3;
-    public static final int AWS_DELETED = 4;
-    public static final int AWS_DELETE_FAILED = 5;
-    public static final int AWS_FAILED = 6;
+    public static final int AWS_DOWNLOAD_NO_FILE = 4;
+    public static final int AWS_DELETED = 5;
+    public static final int AWS_DELETE_FAILED = 6;
+    public static final int AWS_FAILED = 7;
     public static final String INTENT_UPLOAD = "upload";
     public static final String INTENT_DOWNLOAD = "download";
     public static final String INTENT_DELETE = "delete";
@@ -82,6 +86,39 @@ public class AWSManager {
             intent.setAction(INTENT_DELETE);
             intent.putExtra(EXTRA_INTERNAL_FILENAME, filename);
             MainActivityContext.startService(intent);
+        }
+    }
+
+    public static void uploadLater(String filename) {
+        if(MainActivityContext != null) {
+            AlarmManager alarmMgr = (AlarmManager) MainActivityContext.getSystemService(Context.ALARM_SERVICE);
+            Intent intent = new Intent(MainActivityContext, AWSService.class);
+            intent.setAction(INTENT_UPLOAD);
+            intent.putExtra(EXTRA_INTERNAL_FILENAME, filename);
+            PendingIntent alarmIntent = PendingIntent.getService(MainActivityContext, 0, intent, 0);
+            alarmMgr.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + 60 * 1000, alarmIntent);
+        }
+    }
+
+    public static void downloadLater(String filename) {
+        if(MainActivityContext != null) {
+            AlarmManager alarmMgr = (AlarmManager) MainActivityContext.getSystemService(Context.ALARM_SERVICE);
+            Intent intent = new Intent(MainActivityContext, AWSService.class);
+            intent.setAction(INTENT_DOWNLOAD);
+            intent.putExtra(EXTRA_INTERNAL_FILENAME, filename);
+            PendingIntent alarmIntent = PendingIntent.getService(MainActivityContext, 0, intent, 0);
+            alarmMgr.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + 60 * 1000, alarmIntent);
+        }
+    }
+
+    public static void deleteLater(String filename) {
+        if(MainActivityContext != null) {
+            AlarmManager alarmMgr = (AlarmManager) MainActivityContext.getSystemService(Context.ALARM_SERVICE);
+            Intent intent = new Intent(MainActivityContext, AWSService.class);
+            intent.setAction(INTENT_DELETE);
+            intent.putExtra(EXTRA_INTERNAL_FILENAME, filename);
+            PendingIntent alarmIntent = PendingIntent.getService(MainActivityContext, 0, intent, 0);
+            alarmMgr.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + 60 * 1000, alarmIntent);
         }
     }
 

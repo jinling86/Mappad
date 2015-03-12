@@ -182,10 +182,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     protected void onStop() {
         super.onStop();
         if(!mControlledFinish) {
-            if (NoteManager.saveChanges(mPosition, mTitle, mContent, mLatitude, mLongitude)
-                    == NoteManager.NEED_SYNCHRONIZE) {
-                AWSManager.upload();
-            }
+            NoteManager.saveChanges(mPosition, mTitle, mContent, mLatitude, mLongitude);
         }
     }
 
