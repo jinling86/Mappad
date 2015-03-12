@@ -67,6 +67,7 @@ public class NoteManager {
     private ArrayList<NoteItem> mAllNotes = null;
     private ArrayList<NoteIndex> mNoteIndex = null;
     private ArrayList<Integer> mRealIndex = null;
+    private static boolean mItemDeleted = false;
 
     public NoteManager(Context context) {
         mContext = context;
@@ -101,6 +102,7 @@ public class NoteManager {
      * @return if the note is modified, saves the note on disk and notifies the caller to upload it
      */
     public int setNote(int index, String title, String content, double latitude, double longitude) {
+        Log.d(TAG, "Set note " + index);
         if(index >= mRealIndex.size()) {
             Log.d(TAG, "Error, index does not exist!");
             return DO_NOT_NEED_SYNCHRONIZE;
@@ -185,6 +187,7 @@ public class NoteManager {
 
         adjustRealIndex();
         save();
+        Log.d(TAG, "Add note " + (size() - 1));
 
         return size() - 1;
     }
@@ -270,6 +273,7 @@ public class NoteManager {
             Log.d(TAG, "Error, index does not exist!");
             return;
         }
+        Log.d(TAG, "Delete note " + index);
         int realIndex = mRealIndex.get(index);
         if(realIndex < mNoteIndex.size()) {
             NoteIndex noteIndex = mNoteIndex.get(realIndex);
@@ -363,6 +367,7 @@ public class NoteManager {
             e.printStackTrace();
             errorRecovery();
         }
+        Log.d(TAG, "Notes recovered");
     }
 
     private void errorRecovery() {
@@ -383,11 +388,14 @@ public class NoteManager {
         for(NoteIndex index : mNoteIndex) {
             if(!index.mSynchronized && !index.mDeleted) {
                 fileNames.add(index.mFileName);
+                Log.d(TAG, "Intend to send " + index.mFileName);
             }
         }
         // Add the index file if any file is to be sent
-        if(fileNames.size() != 0) {
+        if(fileNames.size() != 0 || mItemDeleted) {
             fileNames.add(INDEX_FILE_NAME);
+            Log.d(TAG, "Intend to send " + INDEX_FILE_NAME);
+            mItemDeleted = false;
         }
         return fileNames;
     }
@@ -416,6 +424,7 @@ public class NoteManager {
                     if(mTimeCompResult > 0) {
                         // The cloud file is newer, download it
                         fileNames.add(cloudItem.mFileName);
+                        Log.d(TAG, "Intend to fetch " + cloudItem.mFileName);
                     } else if(mTimeCompResult < 0) {
                         // The cloud file is out of date, upload it
                         localItem.mSynchronized = false;
@@ -425,6 +434,7 @@ public class NoteManager {
                 } else if (cTimeCompResult > 0) {
                     // A file is deleted/missed in local
                     fileNames.add(cloudItem.mFileName);
+                    Log.d(TAG, "Intend to fetch " + cloudItem.mFileName);
                     iCloud++;
                 } else {
                     // A file only exists in the cell phone, synchronize it
@@ -440,6 +450,7 @@ public class NoteManager {
             while(iCloud < cloudIndex.size()) {
                 // Miss local files
                 fileNames.add(cloudIndex.get(iCloud).mFileName);
+                Log.d(TAG, "Intend to fetch " + cloudIndex.get(iCloud).mFileName);
                 iCloud++;
             }
         } catch( ClassNotFoundException | IOException | ClassCastException e ) {
@@ -454,11 +465,8 @@ public class NoteManager {
         for(NoteIndex index : mNoteIndex) {
             if(index.mDeleted) {
                 fileNames.add(index.mFileName);
+                Log.d(TAG, "Intend to delete " + index.mFileName);
             }
-        }
-        // Add the index file if any file is to be sent
-        if(fileNames.size() != 0) {
-            fileNames.add(INDEX_FILE_NAME);
         }
         return fileNames;
     }
@@ -467,6 +475,7 @@ public class NoteManager {
         for(NoteIndex index: mNoteIndex) {
             if(filename.compareTo(index.mFileName) == 0) {
                 index.mSynchronized = true;
+                Log.d(TAG, "Process sending confirmation of " + index.mFileName);
                 save();
             }
         }
@@ -491,6 +500,7 @@ public class NoteManager {
             NoteItem aNote = (NoteItem)ois.readObject();
             ois.close();
 
+            Log.d(TAG, "Process receiving confirmation of " + filename);
             boolean addToLast = true;
             for(int i = 0; i < mNoteIndex.size(); i++) {
                 int cTimeCompResult = mNoteIndex.get(i).mCreatedTime.compareTo(aNote.mCreatedTime);
@@ -510,6 +520,7 @@ public class NoteManager {
             }
             if(addToLast) {
                 addNoteFromExternal(mNoteIndex.size(), aNote);
+                adjustRealIndex();
             }
             save();
             File localFile = new File(getTmpFullName(filename));
@@ -524,6 +535,7 @@ public class NoteManager {
         int position = NEW_NODE_POSITION;
         for(int i = 0; i < mNoteIndex.size(); i++) {
             if(mNoteIndex.get(i).mFileName.compareTo(filename) == 0) {
+                Log.d(TAG, "Process deleting confirmation of " + filename);
                 position = i;
                 break;
             }
@@ -535,6 +547,7 @@ public class NoteManager {
         File localFile = new File(getFullName(filename));
         localFile.deleteOnExit();
         save();
+        mItemDeleted = true;
     }
 
     /**
