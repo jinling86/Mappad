@@ -5,9 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
-import android.os.AsyncTask;
 import android.util.Log;
-import android.widget.Toast;
 
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
@@ -106,9 +104,8 @@ public class AWSService extends IntentService {
             return;
         }
         try {
-            String cloudFilename = NoteManager.getTmpName(file_name);
             String localFilename = NoteManager.getTmpFullName(file_name);
-            mS3Client.getObject(new GetObjectRequest(BUCKET_NAME, cloudFilename), new File(localFilename));
+            mS3Client.getObject(new GetObjectRequest(BUCKET_NAME, file_name), new File(localFilename));
             Log.d(TAG, "Download successfully");
             sendResult(AWSManager.AWS_DOWNLOADED, file_name);
         } catch ( AmazonServiceException ase ) {
@@ -134,9 +131,8 @@ public class AWSService extends IntentService {
             return;
         }
         try {
-            String cloudFilename = NoteManager.getTmpName(file_name);
             String localFilename = NoteManager.getFullName(file_name);
-            mS3Client.putObject(new PutObjectRequest(BUCKET_NAME, cloudFilename, new File(localFilename)));
+            mS3Client.putObject(new PutObjectRequest(BUCKET_NAME, file_name, new File(localFilename)));
             Log.d(TAG, "Upload successfully " + file_name);
             sendResult(AWSManager.AWS_UPLOADED, file_name);
         } catch ( AmazonServiceException ase ) {
@@ -159,8 +155,7 @@ public class AWSService extends IntentService {
             return;
         }
         try {
-            String cloudFilename = NoteManager.getTmpName(file_name);
-            mS3Client.deleteObject(BUCKET_NAME, cloudFilename);
+            mS3Client.deleteObject(BUCKET_NAME, file_name);
             sendResult(AWSManager.AWS_DELETED, file_name);
             Log.d(TAG, "Delete successfully" + file_name);
         } catch ( AmazonServiceException ase ) {

@@ -1,13 +1,10 @@
 package ca.uottawa.ljin027.mappad;
 
-import android.app.AlarmManager;
-import android.app.PendingIntent;
 import android.content.BroadcastReceiver;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.location.Location;
-import android.os.SystemClock;
 import android.support.v7.app.ActionBar;
 import android.support.v7.app.ActionBarActivity;
 import android.os.Bundle;
@@ -32,6 +29,7 @@ import com.google.android.gms.location.LocationServices;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This class is implemented for CSI5175 Assignment 2
@@ -91,7 +89,7 @@ public class Activity_List extends ActionBarActivity {
     /**
      * Indicator for uploading the notes file
      */
-    private boolean mAWSBusy = true;
+    private AtomicBoolean mAWSBusy = new AtomicBoolean(true);
     /**
      * Indicator for toasting messages
      */
@@ -162,7 +160,7 @@ public class Activity_List extends ActionBarActivity {
         }
         // Download the notes from AWS S3 Server
         AWSManager.download(NoteManager.INDEX_FILE_NAME);
-        mAWSBusy = true;
+        mAWSBusy.set(true);
         Log.d(TAG, "Activity created");
     }
 
@@ -292,7 +290,7 @@ public class Activity_List extends ActionBarActivity {
                 mNotes.deleteNote(info.position);
 
                 fillList();
-                if(!mAWSBusy)
+                if(!mAWSBusy.get())
                     startNewTransmission();
                 return true;
         }
@@ -326,7 +324,7 @@ public class Activity_List extends ActionBarActivity {
                         bundle.getDouble(NoteManager.EXTRA_LONGITUDE))
                         == NoteManager.NEED_SYNCHRONIZE) {
                     fillList();
-                    if(!mAWSBusy)
+                    if(!mAWSBusy.get())
                         startNewTransmission();
                 }
             } else {
@@ -493,7 +491,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     private boolean startNewTransmission() {
-        if(!mAWSBusy) {
+        if(!mAWSBusy.get()) {
             // When AWS is busy, we should not assign new tasks for it
             if(mFilesToBeDeleted.size() != 0 || mFilesToBeUploaded.size() != 0) {
                 Log.d(TAG, "ERROR: AWS mission incomplete");
@@ -558,7 +556,7 @@ public class Activity_List extends ActionBarActivity {
             mFilesToBeUploaded.remove(0);
             // No file need to receive
             if(!startNewTransmission()) {
-                mAWSBusy = false;
+                mAWSBusy.set(false);
                 if(!startNewTransmission()) {
                     Log.d(TAG, "All files updated, synchronized");
                     toast("Synchronized");
@@ -589,7 +587,7 @@ public class Activity_List extends ActionBarActivity {
         mNotes.confirmSend(filename);
         mFilesToBeUploaded.remove(0);
         if(!startNewTransmission()) {
-            mAWSBusy = false;
+            mAWSBusy.set(false);
             if(!startNewTransmission()) {
                 Log.d(TAG, "All files updated, synchronized");
                 toast("Synchronized");
@@ -634,7 +632,7 @@ public class Activity_List extends ActionBarActivity {
         mNotes.confirmDelete(filename);
         mFilesToBeDeleted.remove(0);
         if(!startNewTransmission()) {
-            mAWSBusy = false;
+            mAWSBusy.set(false);
             if(!startNewTransmission()) {
                 Log.d(TAG, "All files updated, synchronized");
                 toast("Synchronized");
@@ -703,7 +701,7 @@ public class Activity_List extends ActionBarActivity {
 
         // No file need to receive
         if(!startNewTransmission()) {
-            mAWSBusy = false;
+            mAWSBusy.set(false);
             if(!startNewTransmission()) {
                 Log.d(TAG, "All files updated, synchronized");
                 toast("Synchronized");
@@ -738,7 +736,7 @@ public class Activity_List extends ActionBarActivity {
 
         // No file need to receive
         if(!startNewTransmission()) {
-            mAWSBusy = false;
+            mAWSBusy.set(false);
             if(!startNewTransmission()) {
                 Log.d(TAG, "All files updated, synchronized");
                 toast("Synchronized");
@@ -747,7 +745,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     private void updateNotesToBeDeletedList() {
-        if(!mAWSBusy) {
+        if(!mAWSBusy.get()) {
             ArrayList<String> names = mNotes.getFileNamesForDeleting();
             for(String name: names) {
                 if(!mFilesToBeDeleted.contains(name)) {
@@ -761,7 +759,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     private void updateNotesToBeSendList() {
-        if(!mAWSBusy) {
+        if(!mAWSBusy.get()) {
             ArrayList<String> names = mNotes.getFileNamesForSending();
             for(String name: names) {
                 if(!mFilesToBeUploaded.contains(name)) {
@@ -775,17 +773,17 @@ public class Activity_List extends ActionBarActivity {
     }
 
     private void sendTopmostNote() {
-        mAWSBusy = true;
+        mAWSBusy.set(true);
         AWSManager.upload(mFilesToBeUploaded.get(0));
     }
 
     private void receiveTopmostNote() {
-        mAWSBusy = true;
+        mAWSBusy.set(true);
         AWSManager.download(mFilesToBeDownloaded.get(0));
     }
 
     private void deleteTopmostNote() {
-        mAWSBusy = true;
+        mAWSBusy.set(true);
         AWSManager.delete(mFilesToBeDeleted.get(0));
     }
 
@@ -832,7 +830,7 @@ public class Activity_List extends ActionBarActivity {
             }
             mIsDeleting = false;
             fillList();
-            if(!mAWSBusy)
+            if(!mAWSBusy.get())
                 startNewTransmission();
         }
     }

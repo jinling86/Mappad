@@ -3,6 +3,8 @@ package ca.uottawa.ljin027.mappad;
 import android.content.Context;
 import android.util.Log;
 
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -47,10 +49,8 @@ public class NoteManager {
      * Synchronize gives a hint that the file need to be uploaded to the AWS S3 server
      */
     public static final int NEW_NODE_POSITION = -1;
-    public static final int DO_NOT_NEED_UPDATE = 0;
-    public static final int NEED_UPDATE = 1;
-    public static final int DO_NOT_NEED_SYNCHRONIZE = 2;
-    public static final int NEED_SYNCHRONIZE = 3;
+    public static final int DO_NOT_NEED_SYNCHRONIZE = 0;
+    public static final int NEED_SYNCHRONIZE = 1;
 
     /**
      * Full names of the internal files
@@ -59,8 +59,10 @@ public class NoteManager {
     private static String TAG = "<<<<< Note Manager >>>>>";
 
     public static String TMP_TAG = "_tmp";
-    public static String INDEX_FILE_NAME = "notes_file";
+    public static String INDEX_FILE_NAME = "notes_index";
+    private static String NOTE_PREFIX = "note_";
     public static String EXT_FILE_DIR = null;
+    private static SimpleDateFormat mTimeFormat = new SimpleDateFormat("yyyy.MM.dd kk:mm:ss.SSS");
 
     /**
      * this reference, used by inner classes
@@ -137,8 +139,9 @@ public class NoteManager {
                 noteItem.mLongitude = longitude;
             }
             if(contentChanged) {
-                noteItem.mModifiedTime = System.currentTimeMillis();
-                noteIndex.mModifiedTime = noteItem.mModifiedTime;
+                Long currentTime = System.currentTimeMillis();
+                noteItem.mModifiedTime = mTimeFormat.format(new Date(currentTime));
+                noteIndex.mModifiedTime = currentTime;
                 noteIndex.mModified = true;
                 noteIndex.mSynchronized = false;
                 save();
@@ -171,30 +174,19 @@ public class NoteManager {
         if(title == null || title.isEmpty()) {
             title = DEFAULT_TITLE;
         }
+        Long currentTime = System.currentTimeMillis();
         newNote.mTitle = title;
         newNote.mContent = content;
         newNote.mLongitude = longitude;
         newNote.mLatitude = latitude;
-        newNote.mCreatedTime = System.currentTimeMillis();
-        Date dateObj = new java.util.Date(newNote.mCreatedTime);
-        SimpleDateFormat format = new SimpleDateFormat("yyyy.MM.dd kk:mm:ss.SSS");
-        StringBuilder now = new StringBuilder( format.format( dateObj ) );
-        Log.d(TAG, now.toString());
-        long oldMillis = 0;
-        try {
-            Date covDate = format.parse(now.toString());
-            oldMillis = covDate.getTime();
-        } catch (ParseException e) {
-            Log.d(TAG, e.getMessage());
-        }
-
+        newNote.mCreatedTime = mTimeFormat.format(new Date(currentTime));
         newNote.mModifiedTime = newNote.mCreatedTime;
-        newNote.mInternalName = newNote.mModifiedTime.toString();
+        newNote.mNoteFilename = getNoteFilename(currentTime.toString());
         mAllNotes.add(newNote);
 
-        newIndex.mCreatedTime = newNote.mCreatedTime;
-        newIndex.mModifiedTime = newNote.mModifiedTime;
-        newIndex.mFileName = newIndex.mModifiedTime.toString();
+        newIndex.mCreatedTime = currentTime;
+        newIndex.mModifiedTime = currentTime;
+        newIndex.mFileName = newNote.mNoteFilename;
         newIndex.mModified = true;
         newIndex.mSynchronized = false;
         newIndex.mDeleted = false;
@@ -279,6 +271,10 @@ public class NoteManager {
         }
     }
 
+    private String getNoteFilename(String timeString) {
+        return (NOTE_PREFIX + timeString + ".txt");
+    }
+
     /**
      * Delete a note, and save the node in file
      * @param index deleting item storage position
@@ -297,8 +293,9 @@ public class NoteManager {
             noteIndex.mDeleted = true;
             noteIndex.mModified = true;
             noteIndex.mSynchronized = false;
-            noteIndex.mModifiedTime = System.currentTimeMillis();
-            noteItem.mModifiedTime = noteIndex.mModifiedTime;
+            Long currentTime = System.currentTimeMillis();
+            noteIndex.mModifiedTime = currentTime;
+            noteItem.mModifiedTime = mTimeFormat.format(new Date(currentTime));
 
             // Delete the note from the list view
             adjustRealIndex();
@@ -312,10 +309,6 @@ public class NoteManager {
      */
     public int size() {
         return mRealIndex.size();
-    }
-
-    public int getRealIndex(int index) {
-        return mRealIndex.get(index);
     }
 
     private void adjustRealIndex() {
@@ -338,10 +331,10 @@ public class NoteManager {
             for(int i = 0; i < mNoteIndex.size(); i++) {
                 if(mNoteIndex.get(i).mModified) {
                     mNoteIndex.get(i).mModified = false;
-                    FileOutputStream n_fos = mContext.openFileOutput(mNoteIndex.get(i).mFileName, Context.MODE_PRIVATE);
-                    ObjectOutputStream n_oos = new ObjectOutputStream(n_fos);
-                    n_oos.writeObject(mAllNotes.get(i));
-                    n_oos.close();
+                    DataOutputStream n_dos = new DataOutputStream(
+                            mContext.openFileOutput(mNoteIndex.get(i).mFileName, Context.MODE_PRIVATE));
+                    mAllNotes.get(i).writeToStream(n_dos);
+                    n_dos.close();
                 }
             }
             FileOutputStream i_fos = mContext.openFileOutput(INDEX_FILE_NAME, Context.MODE_PRIVATE);
@@ -368,10 +361,11 @@ public class NoteManager {
             if(mNoteIndex != null) {
                 mAllNotes = new ArrayList<NoteItem>();
                 for (NoteIndex index : mNoteIndex) {
-                    FileInputStream n_fis = mContext.openFileInput(index.mFileName);
-                    ObjectInputStream n_ois = new ObjectInputStream(n_fis);
-                    mAllNotes.add((NoteItem)n_ois.readObject());
-                    n_ois.close();
+                    NoteItem aNote = new NoteItem();
+                    DataInputStream n_dis = new DataInputStream(mContext.openFileInput(index.mFileName));
+                    aNote.readFromStream(n_dis);
+                    mAllNotes.add(aNote);
+                    n_dis.close();
                     Log.d(TAG, "Recover note " + index.mFileName);
                 }
                 // Prepare for the notes should be displayed
@@ -408,7 +402,7 @@ public class NoteManager {
         }
         // Add the index file if any file is to be sent
         if(fileNames.size() != 0 || mItemDeleted) {
-            fileNames.add(INDEX_FILE_NAME);
+            fileNames.add(0, INDEX_FILE_NAME);
             Log.d(TAG, "Intend to send " + INDEX_FILE_NAME);
             mItemDeleted = false;
         }
@@ -497,31 +491,40 @@ public class NoteManager {
     }
 
     public void addNoteFromExternal(int addPosition, NoteItem noteItem) {
-        mAllNotes.add(addPosition, noteItem);
         NoteIndex newIndex = new NoteIndex();
-        newIndex.mFileName = noteItem.mInternalName;
-        newIndex.mCreatedTime = noteItem.mCreatedTime;
-        newIndex.mModifiedTime = noteItem.mModifiedTime;
+        try {
+            newIndex.mCreatedTime = mTimeFormat.parse(noteItem.mCreatedTime).getTime();
+            newIndex.mModifiedTime = mTimeFormat.parse(noteItem.mModifiedTime).getTime();
+        } catch (ParseException e) {
+            Log.d(TAG, "Fail to add external note");
+            e.printStackTrace();
+            return;
+        }
+        newIndex.mFileName = newIndex.mCreatedTime.toString();
         newIndex.mModified = true;
         newIndex.mSynchronized = true;
         newIndex.mDeleted = false;
         mNoteIndex.add(addPosition, newIndex);
+        mAllNotes.add(addPosition, noteItem);
     }
 
     public void confirmReceive(String filename) {
         try {
-            FileInputStream fis = mContext.openFileInput(getTmpName(filename));
-            ObjectInputStream ois = new ObjectInputStream(fis);
-            NoteItem aNote = (NoteItem)ois.readObject();
-            ois.close();
+            NoteItem aNote = new NoteItem();
+            DataInputStream n_dis = new DataInputStream(mContext.openFileInput(getTmpName(filename)));
+            aNote.readFromStream(n_dis);
+            n_dis.close();
 
+            Long noteCreatedTime = mTimeFormat.parse(aNote.mCreatedTime).getTime();
+            Long noteModifiedTime = mTimeFormat.parse(aNote.mModifiedTime).getTime();
             Log.d(TAG, "Process receiving confirmation of " + filename);
             boolean addToLast = true;
             for(int i = 0; i < mNoteIndex.size(); i++) {
-                int cTimeCompResult = mNoteIndex.get(i).mCreatedTime.compareTo(aNote.mCreatedTime);
+
+                int cTimeCompResult = mNoteIndex.get(i).mCreatedTime.compareTo(noteCreatedTime);
                 if(cTimeCompResult == 0) {
                     mAllNotes.set(i, aNote);
-                    mNoteIndex.get(i).mModifiedTime = aNote.mModifiedTime;
+                    mNoteIndex.get(i).mModifiedTime = noteModifiedTime;
                     mNoteIndex.get(i).mSynchronized = true;
                     mNoteIndex.get(i).mModified = true;
                     addToLast = false;
@@ -540,7 +543,7 @@ public class NoteManager {
             save();
             File localFile = new File(getTmpFullName(filename));
             localFile.deleteOnExit();
-        } catch( ClassNotFoundException | IOException | ClassCastException e ) {
+        } catch( IOException | ClassCastException |ParseException e ) {
             Log.d(TAG, "Recovering cloud notes failed!");
             e.printStackTrace();
         }
@@ -569,26 +572,38 @@ public class NoteManager {
      * A static method for the Activities other than the main Activity to update the internal file.
      * The path and name of the file is needed in this case.
      * The file needs to be uploaded to AWS S3 Server if it has been really modified.
-     * @param realIndex position of the note in the ArrayList
+     * @param index position of the note in the ArrayList
      * @param title note title, modified to "no title" if it is empty
      * @param content note content, will always be empty
      * @param latitude note location
      * @param longitude note location
-     * @return indicator of whether the note need to be uploaded to AWS Server
      */
-    public static void saveChanges(int realIndex, String title, String content, double latitude, double longitude) {
+    public static void saveChanges(int index, String title, String content, double latitude, double longitude) {
         try {
             ObjectInputStream i_ois = new ObjectInputStream(new FileInputStream(getFullName(INDEX_FILE_NAME)));
             ArrayList<NoteIndex> allIndex = (ArrayList<NoteIndex>)i_ois.readObject();
             i_ois.close();
-            if(realIndex >= allIndex.size()) {
+
+            int realIndex = NEW_NODE_POSITION;
+            for(int i = 0; i < allIndex.size(); i++) {
+                if(!allIndex.get(i).mDeleted) {
+                    if(index > 0) {
+                        index--;
+                    } else {
+                        realIndex = i;
+                        break;
+                    }
+                }
+            }
+            if(realIndex == NEW_NODE_POSITION) {
                 Log.d(TAG, "Index error in saveChanges()");
                 return;
             }
             String noteFilename = getFullName(allIndex.get(realIndex).mFileName);
-            ObjectInputStream n_ois = new ObjectInputStream(new FileInputStream(noteFilename));
-            NoteItem aNote = (NoteItem)n_ois.readObject();
-            n_ois.close();
+            NoteItem aNote = new NoteItem();
+            DataInputStream n_dis = new DataInputStream(new FileInputStream(noteFilename));
+            aNote.readFromStream(n_dis);
+            n_dis.close();
 
             boolean contentChanged = false;
             if(title == null || title.isEmpty()) {
@@ -611,18 +626,20 @@ public class NoteManager {
                 aNote.mLongitude = longitude;
             }
             if(contentChanged) {
-                aNote.mModifiedTime = System.currentTimeMillis();
+                Long currentTime = System.currentTimeMillis();
+                aNote.mModifiedTime = mTimeFormat.format(new Date(currentTime));
+
                 NoteIndex noteIndex = allIndex.get(realIndex);
-                noteIndex.mModifiedTime = aNote.mModifiedTime;
+                noteIndex.mModifiedTime = currentTime;
                 noteIndex.mModified = false;
                 noteIndex.mSynchronized = false;
 
                 ObjectOutputStream i_oos = new ObjectOutputStream(new FileOutputStream(getFullName(INDEX_FILE_NAME)));
                 i_oos.writeObject(allIndex);
                 i_oos.close();
-                ObjectOutputStream n_oos = new ObjectOutputStream(new FileOutputStream(noteFilename));
-                n_oos.writeObject(aNote);
-                n_oos.close();
+                DataOutputStream n_dos = new DataOutputStream(new FileOutputStream(noteFilename));
+                aNote.writeToStream(n_dos);
+                n_dos.close();
             }
         } catch( ClassNotFoundException | IOException | ClassCastException e ) {
             Log.d(TAG, "File saving failed!");
