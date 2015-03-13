@@ -107,9 +107,10 @@ public class Activity_List extends ActionBarActivity {
      */
     private final String TAG = "<<<<< Activity List >>>>>";
 
-    ArrayList<String> mFilesToBeUploaded = new ArrayList<String>();
-    ArrayList<String> mFilesToBeDownloaded = new ArrayList<String>();
-    ArrayList<String> mFilesToBeDeleted = new ArrayList<String>();
+    private ArrayList<String> mFilesToBeUploaded = new ArrayList<String>();
+    private ArrayList<String> mFilesToBeDownloaded = new ArrayList<String>();
+    private ArrayList<String> mFilesToBeDeleted = new ArrayList<String>();
+    private String mFileDiscarded;
 
 
     /**
@@ -293,7 +294,8 @@ public class Activity_List extends ActionBarActivity {
                 mNotes.deleteNote(info.position);
 
                 fillList();
-                startNewTransmission();
+                if(!mAWSBusy)
+                    startNewTransmission();
                 return true;
         }
         return super.onContextItemSelected(item);
@@ -326,7 +328,8 @@ public class Activity_List extends ActionBarActivity {
                         bundle.getDouble(NoteManager.EXTRA_LONGITUDE))
                         == NoteManager.NEED_SYNCHRONIZE) {
                     fillList();
-                    startNewTransmission();
+                    if(!mAWSBusy)
+                        startNewTransmission();
                 }
             } else {
                 // Should not happen
@@ -519,10 +522,17 @@ public class Activity_List extends ActionBarActivity {
                 Log.d(TAG, "New AWS deleting mission assigned");
                 deleteTopmostNote();
                 return true;
-            } else if (mFilesToBeUploaded.size() != 0) {
+            } else {
+                ArrayList<String> tmpDeleteNames = mNotes.getFileNamesForDeleting();
+                while(mFilesToBeUploaded.size() != 0 && tmpDeleteNames.contains(mFilesToBeUploaded.get(0))) {
+                    Log.d(TAG, "Cancel uploading the already deleted file " + mFilesToBeUploaded.get(0));
+                    mFilesToBeUploaded.remove(0);
+                }
                 Log.d(TAG, "New AWS uploading mission assigned");
-                sendTopmostNote();
-                return true;
+                if(mFilesToBeUploaded.size() != 0) {
+                    sendTopmostNote();
+                    return true;
+                }
             }
             Log.d(TAG, "No new AWS mission assigned");
             return false;
@@ -540,10 +550,27 @@ public class Activity_List extends ActionBarActivity {
         }
         if(filename.compareTo(mFilesToBeUploaded.get(0)) != 0) {
             Log.d(TAG, "ERROR: AWS upload response with a miss matched local filename");
+            Log.d(TAG, "ERROR: i.e. " + filename + " v.s. " + mFilesToBeUploaded.get(0));
             return;
         }
         Log.d(TAG, "AWS response, failed to upload " + filename);
-        AWSManager.uploadLater(filename);
+        ArrayList<String> tmpDeleteNames = mNotes.getFileNamesForDeleting();
+        if(tmpDeleteNames.contains(filename)) {
+            Log.d(TAG, "Cancel uploading the already deleted file " + mFilesToBeUploaded.get(0));
+            mFilesToBeUploaded.remove(0);
+            // No file need to receive
+            if(!startNewTransmission()) {
+                mAWSBusy = false;
+                if(!startNewTransmission()) {
+                    Log.d(TAG, "All files updated, synchronized");
+                    toast("Synchronized");
+                }
+            }
+            return;
+        } else {
+            AWSManager.uploadLater(filename);
+            return;
+        }
     }
 
     private void onFileUploaded(String filename) {
@@ -557,6 +584,7 @@ public class Activity_List extends ActionBarActivity {
         }
         if(filename.compareTo(mFilesToBeUploaded.get(0)) != 0) {
             Log.d(TAG, "ERROR: AWS upload response with a miss matched local filename");
+            Log.d(TAG, "ERROR: i.e. " + filename + " v.s. " + mFilesToBeUploaded.get(0));
             return;
         }
         Log.d(TAG, "AWS response, success to upload " + filename);
@@ -582,6 +610,7 @@ public class Activity_List extends ActionBarActivity {
         }
         if(filename.compareTo(mFilesToBeDeleted.get(0)) != 0) {
             Log.d(TAG, "ERROR: AWS delete response with a miss matched local filename");
+            Log.d(TAG, "ERROR: i.e. " + filename + " v.s. " + mFilesToBeUploaded.get(0));
             return;
         }
         Log.d(TAG, "AWS response, failed to delete " + filename);
@@ -599,6 +628,7 @@ public class Activity_List extends ActionBarActivity {
         }
         if(filename.compareTo(mFilesToBeDeleted.get(0)) != 0) {
             Log.d(TAG, "ERROR: AWS delete response with a miss matched local filename");
+            Log.d(TAG, "ERROR: i.e. " + filename + " v.s. " + mFilesToBeUploaded.get(0));
             return;
         }
         Log.d(TAG, "AWS response, success to delete " + filename);
@@ -626,6 +656,7 @@ public class Activity_List extends ActionBarActivity {
             }
             if (mFilesToBeDownloaded.get(0).compareTo(filename) != 0) {
                 Log.d(TAG, "ERROR: AWS download response with a miss matched local filename");
+                Log.d(TAG, "ERROR: i.e. " + filename + " v.s. " + mFilesToBeUploaded.get(0));
                 return;
             }
         }
@@ -656,6 +687,7 @@ public class Activity_List extends ActionBarActivity {
             }
             if (mFilesToBeDownloaded.get(0).compareTo(filename) != 0) {
                 Log.d(TAG, "ERROR: AWS download response with a miss matched local filename");
+                Log.d(TAG, "ERROR: i.e. " + filename + " v.s. " + mFilesToBeUploaded.get(0));
                 return;
             }
             // Confirm the received file, update ListView
@@ -802,7 +834,8 @@ public class Activity_List extends ActionBarActivity {
             }
             mIsDeleting = false;
             fillList();
-            startNewTransmission();
+            if(!mAWSBusy)
+                startNewTransmission();
         }
     }
 

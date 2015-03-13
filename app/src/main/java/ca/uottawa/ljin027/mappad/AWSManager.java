@@ -89,15 +89,17 @@ public class AWSManager {
             MainActivityContext.startService(intent);
         }
     }
+    static int i = 0;
 
     public static void getLatentService(String action, String filename) {
+
         if(MainActivityContext != null) {
             Log.d(TAG, "After " + AWS_RETRY_TIMEOUT + " seconds " + action + " " + filename);
             AlarmManager alarmMgr = (AlarmManager) MainActivityContext.getSystemService(Context.ALARM_SERVICE);
             Intent intent = new Intent(MainActivityContext, AWSService.class);
             intent.setAction(action);
             intent.putExtra(EXTRA_INTERNAL_FILENAME, filename);
-            PendingIntent alarmIntent = PendingIntent.getService(MainActivityContext, 0, intent, 0);
+            PendingIntent alarmIntent = PendingIntent.getService(MainActivityContext, 0, intent, PendingIntent.FLAG_ONE_SHOT);
             alarmMgr.set(AlarmManager.ELAPSED_REALTIME_WAKEUP, SystemClock.elapsedRealtime() + AWS_RETRY_TIMEOUT * 1000, alarmIntent);
         }
     }

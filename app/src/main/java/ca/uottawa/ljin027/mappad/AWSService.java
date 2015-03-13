@@ -12,20 +12,11 @@ import android.widget.Toast;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.BasicAWSCredentials;
-import com.amazonaws.mobileconnectors.s3.transfermanager.Download;
-import com.amazonaws.mobileconnectors.s3.transfermanager.TransferManager;
-import com.amazonaws.mobileconnectors.s3.transfermanager.Upload;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GetObjectRequest;
-import com.amazonaws.services.s3.model.ObjectMetadata;
-import com.amazonaws.services.s3.model.ProgressEvent;
-import com.amazonaws.services.s3.model.ProgressListener;
 import com.amazonaws.services.s3.model.PutObjectRequest;
-import com.amazonaws.services.s3.model.S3Object;
-import com.amazonaws.util.IOUtils;
 
 import java.io.File;
-import java.io.FileOutputStream;
 
 /**
  * This class is implemented for CSI5175 Assignment 2.
@@ -108,8 +99,8 @@ public class AWSService extends IntentService {
         }
     }
 
-    private void download(final String file_name) {
-        if(!mNetworkInfo.isConnectedOrConnecting()) {
+    private void download(String file_name) {
+        if(mNetworkInfo == null || !mNetworkInfo.isConnectedOrConnecting()) {
             Log.d(TAG, "No connection while downloading");
             sendResult(AWSManager.AWS_DOWNLOAD_FAILED, file_name);
             return;
@@ -136,8 +127,8 @@ public class AWSService extends IntentService {
         }
     }
 
-    private void upload(final String file_name) {
-        if(!mNetworkInfo.isConnectedOrConnecting()) {
+    private void upload(String file_name) {
+        if(mNetworkInfo == null || !mNetworkInfo.isConnectedOrConnecting()) {
             sendResult(AWSManager.AWS_UPLOAD_FAILED, file_name);
             Log.d(TAG, "No connection while uploading");
             return;
@@ -146,7 +137,7 @@ public class AWSService extends IntentService {
             String cloudFilename = NoteManager.getTmpName(file_name);
             String localFilename = NoteManager.getFullName(file_name);
             mS3Client.putObject(new PutObjectRequest(BUCKET_NAME, cloudFilename, new File(localFilename)));
-            Log.d(TAG, "Upload successfully");
+            Log.d(TAG, "Upload successfully " + file_name);
             sendResult(AWSManager.AWS_UPLOADED, file_name);
         } catch ( AmazonServiceException ase ) {
             Log.d(TAG, "Caught an AmazonServiceException:");
@@ -161,17 +152,17 @@ public class AWSService extends IntentService {
         }
     }
 
-    private void delete(final String file_name) {
-        if(!mNetworkInfo.isConnectedOrConnecting()) {
+    private void delete(String file_name) {
+        if(mNetworkInfo == null || !mNetworkInfo.isConnectedOrConnecting()) {
             sendResult(AWSManager.AWS_DELETE_FAILED, file_name);
             Log.d(TAG, "No connection while deleting");
-            Log.d(TAG, "Delete successfully");
             return;
         }
         try {
             String cloudFilename = NoteManager.getTmpName(file_name);
             mS3Client.deleteObject(BUCKET_NAME, cloudFilename);
             sendResult(AWSManager.AWS_DELETED, file_name);
+            Log.d(TAG, "Delete successfully" + file_name);
         } catch ( AmazonServiceException ase ) {
             Log.d(TAG, "Caught an AmazonServiceException:");
             Log.d(TAG, "Error Message: " + ase.getMessage()
