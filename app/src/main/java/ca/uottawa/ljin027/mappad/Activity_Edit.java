@@ -171,6 +171,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     @Override
     protected void onPause() {
         super.onPause();
+        Log.d(TAG, "Activity stopped, read user inputs");
         readInput();
     }
 
@@ -182,6 +183,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     protected void onStop() {
         super.onStop();
         if(!mControlledFinish) {
+            Log.d(TAG, "Activity stopped, save changes");
             NoteManager.saveChanges(mPosition, mTitle, mContent, mLatitude, mLongitude);
         }
     }

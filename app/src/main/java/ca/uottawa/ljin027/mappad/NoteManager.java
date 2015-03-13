@@ -9,7 +9,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.text.ParseException;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 
 /**
  * This class is implement for CSI5175 Assignment 2.
@@ -173,6 +176,18 @@ public class NoteManager {
         newNote.mLongitude = longitude;
         newNote.mLatitude = latitude;
         newNote.mCreatedTime = System.currentTimeMillis();
+        Date dateObj = new java.util.Date(newNote.mCreatedTime);
+        SimpleDateFormat format = new SimpleDateFormat("yyyy.MM.dd kk:mm:ss.SSS");
+        StringBuilder now = new StringBuilder( format.format( dateObj ) );
+        Log.d(TAG, now.toString());
+        long oldMillis = 0;
+        try {
+            Date covDate = format.parse(now.toString());
+            oldMillis = covDate.getTime();
+        } catch (ParseException e) {
+            Log.d(TAG, e.getMessage());
+        }
+
         newNote.mModifiedTime = newNote.mCreatedTime;
         newNote.mInternalName = newNote.mModifiedTime.toString();
         mAllNotes.add(newNote);

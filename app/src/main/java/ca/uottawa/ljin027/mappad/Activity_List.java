@@ -110,8 +110,6 @@ public class Activity_List extends ActionBarActivity {
     private ArrayList<String> mFilesToBeUploaded = new ArrayList<String>();
     private ArrayList<String> mFilesToBeDownloaded = new ArrayList<String>();
     private ArrayList<String> mFilesToBeDeleted = new ArrayList<String>();
-    private String mFileDiscarded;
-
 
     /**
      * Initialize UI, set buttons listeners, initialize location service, download the notes file
@@ -517,7 +515,7 @@ public class Activity_List extends ActionBarActivity {
             return false;
         } else {
             // Send the following files
-            Log.d(TAG, "AWS server is in previous transmission");
+            Log.d(TAG, "AWS server is in previous session, try to start a new transmission");
             if(mFilesToBeDeleted.size() != 0) {
                 Log.d(TAG, "New AWS deleting mission assigned");
                 deleteTopmostNote();
