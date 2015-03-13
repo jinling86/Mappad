@@ -24,4 +24,7 @@ public class NoteItem implements Serializable{
     public String mContent;
     public Double mLongitude;
     public Double mLatitude;
+    public String mInternalName;
+    public Long mCreatedTime;
+    public Long mModifiedTime;
 }
