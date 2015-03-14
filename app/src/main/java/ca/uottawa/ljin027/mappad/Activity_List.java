@@ -33,7 +33,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * This class is implemented for CSI5175 Assignment 2
- * This class displays the note list to user. It also supports a set of notes operations, which are
+ * This class displays the note list to user. It supports a set of notes operations, which are
  * adding new note by clicking add button, modifying existing note by clicking the list item,
  * deleting a single note item when long touching the item, deleting mass notes by clicking the
  * trash can button.
@@ -42,13 +42,23 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The screen rotation is forbidden for the Edit Activity is hard to be displayed in landscape mode.
  *
  * A note is immediately created and saved when a user clicks the add button. When he/she finishes
- * editing, the contents of the modified note are sent back to current activity via Intent. The
+ * editing, the contents of the modified note are sent back to this Activity via Intent. The
  * pre-save mechanism is implemented in case the application is put to background when in the Edit
  * activity. If not being implemented, the index of the note item will turn out an error.
- * When being created, the application tries to download the notes file from AWS S3 server. it will
- * use the internal notes file if it fails to download the file or the downloaded file is older
- * than the current file. When the notes have been modified, the Activity will wait until it is
- * being stopped to upload the modified file.
+ * When being created, the application tries to synchronize the notes from AWS S3 server. it will
+ * first obtain the file list on the server, compares the file names and modified date to
+ * determine which files need to be downloaded/uploaded. It uses the internal notes file if it
+ * fails to synchronize the notes. When the notes have been really modified, the Activity will
+ * upload the file.
+ *
+ * A transaction concept is introduced in the application. A synchronization transaction always be
+ * performed in sequence of:
+ *        obtaining the file list and downloading files -> deleting files -> upload files
+ * Only current transaction is finished, a new transaction can be initialized, which involves
+ * determining the files that to be processed and uploads/deletes them. This transaction helps
+ * maintaining the integrity of the synchronization. Moreover, the uploading process maybe cancelled
+ * if the file is locally deleted.
+ *
  * When the internet is out of usage, the application works as normal. However, it can neither
  * upload the notes file to the AWS S3 server nor receive Google Maps figures. It will upload the
  * notes file when the internet recovers.
@@ -87,7 +97,7 @@ public class Activity_List extends ActionBarActivity {
     private AWSMessageReceiver mBroadcastReceiver = null;
     private final Activity_List mActivity_List = this;
     /**
-     * Indicator for uploading the notes file
+     * Indicator for uploading the notes file, protected by Atomic mechanism
      */
     private AtomicBoolean mAWSBusy = new AtomicBoolean(true);
     /**
@@ -104,13 +114,15 @@ public class Activity_List extends ActionBarActivity {
      * Debugging
      */
     private final String TAG = "<<<<< Activity List >>>>>";
-
+    /**
+     * Synchronization file name lists
+     */
     private ArrayList<String> mFilesToBeUploaded = new ArrayList<String>();
     private ArrayList<String> mFilesToBeDownloaded = new ArrayList<String>();
     private ArrayList<String> mFilesToBeDeleted = new ArrayList<String>();
 
     /**
-     * Initialize UI, set buttons listeners, initialize location service, download the notes file
+     * Initializes UI, sets buttons listeners, initializes location service, downloads the note list
      * from AWS S3 server. All the callback methods are defined as inner classes for clearance.
      * @param savedInstanceState saved state, do not need to be processed
      */
@@ -165,7 +177,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     /**
-     * Set the visibility indicator as visible, recover location service
+     * Sets the visibility indicator as visible, recovers location service
      */
     @Override
     protected void onStart() {
@@ -179,8 +191,8 @@ public class Activity_List extends ActionBarActivity {
     }
 
     /**
-     * Set the visibility indicator as visible. Set the list view from deleting state to normal
-     * Disconnect the location service. And upload the notes file if necessary
+     * Sets the visibility indicator as visible. Sets the list view from deleting state to normal
+     * Disconnects the location service. And uploads the notes file if necessary
      */
     @Override
     protected void onStop() {
@@ -206,7 +218,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     /**
-     * Create the option menu, includes two buttons, one for adding new note, the other for mass
+     * Creates the option menu, includes two buttons, one for adding new note, the other for mass
      * deleting
      * @param menu a menu instance
      * @return always true
@@ -218,7 +230,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     /**
-     * Add or mass delete
+     * Adds or mass delete
      * @param item the menu item being clicked
      * @return result from super method
      */
@@ -265,7 +277,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     /**
-     * Add the delete context menu
+     * Adds the delete context menu
      * @param menu menu context
      * @param v view context
      * @param menuInfo menuInfo instance
@@ -277,7 +289,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     /**
-     * Delete the selected item and prepare to upload the file
+     * Deletes the selected item and prepare to upload the file
      * @param item menu item instance
      * @return always true
      */
@@ -288,7 +300,7 @@ public class Activity_List extends ActionBarActivity {
                 Log.d(TAG, "Context menu DELETE clicked");
                 AdapterView.AdapterContextMenuInfo info = (AdapterView.AdapterContextMenuInfo) item.getMenuInfo();
                 mNotes.deleteNote(info.position);
-
+                // Update the List View and try to synchronize the notes when modified
                 fillList();
                 startNewTransmission();
                 return true;
@@ -297,7 +309,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     /**
-     * Process the results from other Activities
+     * Processes the results from other Activities
      * @param requestCode request type
      * @param resultCode not in use
      * @param intent used for getting extras
@@ -308,12 +320,6 @@ public class Activity_List extends ActionBarActivity {
         if (requestCode == ACTIVITY_EDIT) {
             Log.d(TAG, "Returned from Activity Edit");
             if (intent != null) {
-                // Every time returning from the edit Activity, we read the notes again from
-                // internal storage. When user switches out from the edit Activity, it saves the
-                // notes into storage in case the user never switches back. In this situation,
-                // if we refresh the in-memory notes, we do not need to write and update the notes
-                // again for the notes is "not" modified at all.
-                //mNotes = new NoteManager(this);
                 Bundle bundle = intent.getExtras();
                 if (mNotes.setNote(
                         bundle.getInt(NoteManager.EXTRA_INDEX),
@@ -322,6 +328,7 @@ public class Activity_List extends ActionBarActivity {
                         bundle.getDouble(NoteManager.EXTRA_LATITUDE),
                         bundle.getDouble(NoteManager.EXTRA_LONGITUDE))
                         == NoteManager.NEED_SYNCHRONIZE) {
+                    // Update the List View and try to synchronize the notes when modified
                     fillList();
                     startNewTransmission();
                 }
@@ -391,7 +398,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     /**
-     * Put a note in a bundle and return
+     * Puts a note in a bundle
      * @param index index of the note item
      * @return new bundle extra
      */
@@ -406,7 +413,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     /**
-     * Toast a message when the Activity is visible
+     * Toasts a message when the Activity is visible
      * @param message message
      */
     private void toast(String message) {
@@ -416,7 +423,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     /**
-     * Detect whether the location service is available on the cell phone
+     * Detects whether the location service is available on the cell phone
      * Directly use the location service will make the application crash
      */
     private void detectGoogleService() {
@@ -480,6 +487,14 @@ public class Activity_List extends ActionBarActivity {
         }
     }
 
+    /**
+     * Check whether the response from the AWS Service is right. It should be right any way.
+     * @param respFilename responded note file name
+     * @param reqFilename request note file name
+     * @param reqType operation type, delete/send/receive/list
+     * @param resptype true for success, false for failure
+     * @return the response is Okay or not
+     */
     private boolean isRightResponse(String respFilename, String reqFilename, String reqType, boolean resptype) {
         if(respFilename == null) {
             Log.d(TAG, "ERROR: AWS " + reqType + " response without a filename");
@@ -503,6 +518,11 @@ public class Activity_List extends ActionBarActivity {
         return true;
     }
 
+    /**
+     * Gets the next mission of a new transaction when system is Idle. Deleting mission first,
+     * uploading files last.
+     * @return whether a new mission is executed.
+     */
     private boolean startNewTransmission() {
         if(!mAWSBusy.get()) {
             // When AWS is busy, we should not assign new tasks for it
@@ -528,6 +548,12 @@ public class Activity_List extends ActionBarActivity {
         return false;
     }
 
+    /**
+     * Gets the next mission of current transaction, deleting mission first, uploading files last.
+     * Delete the uploading mission if the note has been deleted. The deleting message will be sent
+     * in next transaction. If a new mission is not executed, should set system to Idle state.
+     * @return whether a new mission is executed
+     */
     private boolean startNextTransmission() {
         // Send the following files
         Log.d(TAG, "Start a new transmission while in an unfinished session");
@@ -552,6 +578,9 @@ public class Activity_List extends ActionBarActivity {
         return false;
     }
 
+    /**
+     * Starts a transmission in current transaction, if fails, begins a new transaction
+     */
     private void continueTransmission() {
         if(!startNextTransmission()) {
             mAWSBusy.set(false);
@@ -562,6 +591,10 @@ public class Activity_List extends ActionBarActivity {
         }
     }
 
+    /**
+     * Tries to upload the note file again.
+     * @param filename file name for checking and new Intent
+     */
     private void onFileUploadFailure(String filename) {
         if(!isRightResponse(
                 filename,
@@ -580,6 +613,10 @@ public class Activity_List extends ActionBarActivity {
         }
     }
 
+    /**
+     * Decides further operations, uploading more files
+     * @param filename file name for checking
+     */
     private void onFileUploaded(String filename) {
         if(!isRightResponse(
                 filename,
@@ -592,6 +629,10 @@ public class Activity_List extends ActionBarActivity {
         continueTransmission();
     }
 
+    /**
+     * Tries to delete the note file again.
+     * @param filename file name for checking and new Intent
+     */
     private void onFileDeleteFailure(String filename) {
         if(!isRightResponse(
                 filename,
@@ -602,6 +643,10 @@ public class Activity_List extends ActionBarActivity {
         AWSManager.deleteLater(filename);
     }
 
+    /**
+     * Decides further operations, deleting/uploading
+     * @param filename file name for checking
+     */
     private void onFileDeleted(String filename) {
         if(!isRightResponse(
                 filename,
@@ -615,6 +660,10 @@ public class Activity_List extends ActionBarActivity {
         continueTransmission();
     }
 
+    /**
+     * Tries to download the note file again.
+     * @param filename file name for checking and new Intent
+     */
     private void onFileDownloadFailure(String filename) {
         if(!isRightResponse(
                 filename,
@@ -625,6 +674,10 @@ public class Activity_List extends ActionBarActivity {
         AWSManager.downloadLater(filename);
     }
 
+    /**
+     * Decides further operations, downloading/deleting/uploading
+     * @param filename file name for checking
+     */
     private void onFileDownloaded(String filename) {
         if(!isRightResponse(
                 filename,
@@ -649,6 +702,10 @@ public class Activity_List extends ActionBarActivity {
         continueTransmission();
     }
 
+    /**
+     * Decides further operations, downloading/deleting/uploading
+     * @param filename file name for checking
+     */
     private void onFileListed(String filename) {
         if(!isRightResponse(filename, null, AWSManager.INTENT_LIST, true))
             return;
@@ -669,6 +726,10 @@ public class Activity_List extends ActionBarActivity {
         continueTransmission();
     }
 
+    /**
+     * Tries to obtain file list again.
+     * @param filename file name for checking and new Intent
+     */
     private void onFileListFailure(String filename) {
         if(!isRightResponse(
                 filename,
@@ -679,6 +740,9 @@ public class Activity_List extends ActionBarActivity {
         AWSManager.listLater(filename);
     }
 
+    /**
+     * Queries the NoteManager for files to be delete, ignores the files already in list
+     */
     private void updateNotesToBeDeletedList() {
         if(!mAWSBusy.get()) {
             Log.d(TAG, "Update files to be deleted list");
@@ -694,6 +758,9 @@ public class Activity_List extends ActionBarActivity {
         }
     }
 
+    /**
+     * Queries the NoteManager for files to be sent, ignores the files already in list
+     */
     private void updateNotesToBeSendList() {
         if(!mAWSBusy.get()) {
             Log.d(TAG, "Update files to be sent list");
@@ -709,23 +776,31 @@ public class Activity_List extends ActionBarActivity {
         }
     }
 
+    /**
+     * Sends the first file in the to-be-sent list
+     */
     private void sendTopmostNote() {
         mAWSBusy.set(true);
         AWSManager.upload(mFilesToBeUploaded.get(0));
     }
 
-    private void receiveTopmostNote() {
+    /**
+     * Receives the first file in the to-be-received list
+     */    private void receiveTopmostNote() {
         mAWSBusy.set(true);
         AWSManager.download(mFilesToBeDownloaded.get(0));
     }
 
+    /**
+     * Deletes the first file in the to-be-deleted list
+     */
     private void deleteTopmostNote() {
         mAWSBusy.set(true);
         AWSManager.delete(mFilesToBeDeleted.get(0));
     }
 
     /**
-     * A button click listen for starting the map display Activity
+     * A button click listener for starting the map display Activity
      */
     class ButtonListener_ShowMap implements Button.OnClickListener {
         @Override
@@ -741,7 +816,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     /**
-     * A button click listen for cancelling the deleting state
+     * A button click listener for cancelling the deleting state
      */
     class ButtonListener_CancelDeletion implements Button.OnClickListener {
         @Override
@@ -753,7 +828,7 @@ public class Activity_List extends ActionBarActivity {
     }
 
     /**
-     * A button click listen for deleting all the selected note items
+     * A button click listener for deleting all the selected note items
      */
     class ButtonListener_ConfirmDeletion implements Button.OnClickListener {
         @Override

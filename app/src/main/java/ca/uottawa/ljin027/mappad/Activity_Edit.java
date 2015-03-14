@@ -30,14 +30,14 @@ import com.google.android.gms.maps.model.MarkerOptions;
 /**
  * This class is implemented for CSI5175 Assignment 2.
  * User uses this activity to edit note. The title is typed in and the location is selected by
- * clicking the update button. When being clicked, the current location of marker in the Google Maps
+ * clicking a button. When being clicked, the current location of the marker in the Google Maps
  * Fragment will be read. The modified contents are sent back to the List Activity when user click
  * the done button in the menu or the back button of the on-screen buttons. The activity also saves
  * the notes when the user switches out of it, in which case the List Activity does not have a
  * chance to run.
- * The note content is not needed for the bonus of the assignment. But the code is still kept.
+ * The note content is not needed in the bonus part of the assignment. But the code is still kept.
  *
- * This is the URLs of Android activity life circle:
+ * This is the URL of Android activity life circle:
  * http://developer.android.com/training/basics/activity-lifecycle/starting.html
  *
  * @author      Ling Jin
@@ -49,6 +49,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
      * Debugging String constant
      */
     private final String TAG = "<<<<< Activity Edit >>>>>";
+
     /**
      * Views references
      */
@@ -59,21 +60,25 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     private TextView mView_RefLatitude = null;
     private TextView mView_RefLongitude = null;
     private TextView mView_GoogleHint = null;
+
     /**
-     * Indicator for whether the Activity is killed as the result of pressing the menu button or the
-     * back button. If not, save the note on internal storage and try to upload it.
+     * Indicator for whether the Activity is stooped as the result of pressing the menu button or
+     * the back button. If not, save the modified note into internal storage.
      */
     private boolean mControlledFinish = false;
+
     /**
-     * We ignore the camera change message for the first time.
-     * The text color of the latitude and longitude views will changed if the camera focus is
-     * changed.
+     * We ignore the camera change message for the first time so as to keep focus to the saved
+     * location. The text color of the latitude and longitude views will changed if the camera
+     * focus is changed.
      */
     private boolean mFirstCameraChange = true;
+
     /**
-     * Indicator of the supporting of the location service
+     * Indicator of the availability of the location service
      */
     private boolean mGoogleServiceAvailable = true;
+
     /**
      * Data of the current note
      */
@@ -82,15 +87,16 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     private final String  mContent = "";
     private double mLatitude;
     private double mLongitude;
+
     /**
-     * The referential location
+     * The referential(to be modified as) location
      */
     private double mNewLatitude;
     private double mNewLongitude;
 
     /**
-     * Initialize views, button clicking listener and Google Maps service
-     * @param savedInstanceState saved state, do not need to be processed as rotation forbidden
+     * Initializes views, button clicking listeners and Google Maps service
+     * @param savedInstanceState do not need to be processed as the screen rotation is forbidden
      */
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -110,7 +116,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
         mView_RefLatitude = (TextView) findViewById(R.id.textView_RefLatitude);
         mView_RefLongitude = (TextView) findViewById(R.id.textView_RefLongitude);
         mView_GoogleHint = (TextView) findViewById(R.id.textView_GoogleHint);
-        // Press the button to read the location from the map marker
+        // Press the button to read the location of the map marker
         // The location stored in the note will not change when the user is browsing the map
         ImageButton mButton_Update = (ImageButton) findViewById(R.id.button_Update);
         mButton_Update.setOnClickListener(new Button.OnClickListener() {
@@ -155,7 +161,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * Send back an Intent to the list Activity when the back button is clicked
+     * Sends back an Intent to the List Activity when the back button is clicked
      */
     @Override
     public void onBackPressed() {
@@ -165,7 +171,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * Read the user input to when the Activity is paused, this can also be done in the onStop
+     * Reads the user inputs to when the Activity is paused, this can also be done in the onStop
      * method.
      */
     @Override
@@ -176,8 +182,8 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * Save the note to internal storage if the activity is stopped and the list Activity will not
-     * run. Also upload the notes file to AWS S3 Server.
+     * Saves the note to internal storage if the activity is stopped and the List Activity will not
+     * run. The notes file will be uploaded to the AWS S3 Server at the next time we got the chance.
      */
     @Override
     protected void onStop() {
@@ -190,7 +196,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
 
 
     /**
-     * Create the option menu, includes one buttons for finishing editing
+     * Creates the option menu, includes one button for finishing editing
      * @param menu a menu instance
      * @return always true
      */
@@ -201,7 +207,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * Process the clicking of the done button
+     * Processes the clicking of the done button
      * @param item the menu item being clicked
      * @return result from super method
      */
@@ -218,7 +224,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * Initialize map camera and set OnCameraChangeListener.
+     * Initializes map camera and sets OnCameraChangeListener.
      * @param map GoogleMap instance
      */
     @Override
@@ -251,7 +257,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * Fill the contents of the views
+     * Fills the contents of the Views.
      */
     private void fillViews() {
         if (mPosition != NoteManager.NEW_NODE_POSITION) {
@@ -264,7 +270,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * @param latitude latitude in float
+     * @param latitude latitude in Float
      * @return String format of the latitude
      */
     private String getLatitude(double latitude) {
@@ -276,7 +282,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * @param longitude longitude in float
+     * @param longitude longitude in Float
      * @return String format of the longitude
      */
     private String getLongitude(double longitude) {
@@ -288,7 +294,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * Fill the contents of the coordinate views
+     * Fills the contents of the coordinate Views
      */
     private void fillCoordinates() {
         mView_Latitude.setText(getLatitude(mLatitude));
@@ -296,7 +302,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * Fill the contents of the reference coordinate views
+     * Fills the contents of the reference coordinate Views
      */
     private void fillRefCoordinates() {
         mView_RefLatitude.setText(getLatitude(mNewLatitude));
@@ -304,7 +310,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * Construct a bundle of the note items
+     * Constructs a bundle of the note items
      * @return the bundle of the Intent extra
      */
     Bundle makeBundle() {
@@ -318,7 +324,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * Finish the Activity under the control, return the edit result to list Activity
+     * Finishes the Activity under the control, returns the edit result to list Activity
      */
     private void controlledFinish() {
         readInput();
@@ -329,7 +335,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * Read user input
+     * Reads user input(s)
      */
     private void readInput() {
         mTitle = mView_Title.getText().toString();
@@ -337,8 +343,8 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     }
 
     /**
-     * Detect whether the location service is available on the cell phone
-     * Use a striking hint to show the invalid Google Play Services
+     * Detects whether the location service is available on the cell phone
+     * Uses a striking hint to show the invalid Google Play Services
      */
     void detectGoogleService() {
         int status= GooglePlayServicesUtil.isGooglePlayServicesAvailable(this);

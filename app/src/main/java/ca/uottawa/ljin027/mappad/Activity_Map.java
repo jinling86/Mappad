@@ -25,8 +25,9 @@ import com.google.android.gms.maps.model.MarkerOptions;
  * This class is implemented for CSI5175 Assignment 2.
  * Here a Google Maps Fragment resides in a Fragment view. The OnMapReadyCallback.onMapReady
  * method is overrode as the callback from the Google Maps service. The locations stored in the
- * notes will be read and rendered in the map.
- * The most annoying work to use Google Play Service is obtaining the API key.
+ * notes will be read and rendered as markers on the map.
+ *
+ * PLEASE USE A VALID GOOGLE PLAYS SERVICES KEY TO COMPILE THE APPLICATION!
  *
  * Here are some reference URLs:
  * Google Maps API Set up: https://developers.google.com/maps/documentation/android/start
@@ -39,23 +40,29 @@ import com.google.android.gms.maps.model.MarkerOptions;
  * @since       06/03/2015
  */
 public class Activity_Map extends ActionBarActivity implements OnMapReadyCallback {
+
     /**
-     * Default location (city of ottawa), used when the Google Location service does not work, and
-     * default map camera zoom
+     * Default location (city of ottawa), used when the Google Location service does not work
      */
     public static final LatLng OTTAWA_COORDINATES = new LatLng(45.4214, -75.6919);
+
+    /**
+     * Default map camera zoom
+     */
     public static final int DEFAULT_CAMERA_ZOOM = 15;
+
     /**
      * A tag for debug printing
      */
     private final String TAG = "<<<<< Activity Map >>>>>";
+
     /**
      * Notes read from internal file
      */
     private NoteManager mNotes = null;
 
     /**
-     * Initialize all the data and views to be used in the map
+     * Initializes all the data and views to be used in the map.
      * @param savedInstanceState saved state, do not need to be processed
      */
     @Override
@@ -82,7 +89,7 @@ public class Activity_Map extends ActionBarActivity implements OnMapReadyCallbac
     }
 
     /**
-     * When Maps Service is ready, add markers into it and customize the behaviour when the marker
+     * When Maps Service is ready, adds markers into it and customizes the behaviour when a marker
      * is clicked. This gets rids of the button automatically added into the map Fragment.
      * @param map a GoogleMap instance
      */
@@ -128,8 +135,8 @@ public class Activity_Map extends ActionBarActivity implements OnMapReadyCallbac
     }
 
     /**
-     * Create the menu for Map Activity, the menu only contains one item
-     * @param menu menu instance
+     * Creates the menu which only contains one button for returning to the List Activity.
+     * @param menu a menu instance
      * @return always true
      */
     @Override
@@ -139,8 +146,8 @@ public class Activity_Map extends ActionBarActivity implements OnMapReadyCallbac
     }
 
     /**
-     * Kill current Activity and go back to the List Activity when the back icon is clicked
-     * @param item menu item instance
+     * Kills current Activity and go back to the List Activity when the back icon is clicked
+     * @param item a menu item instance
      * @return always true in the inheriting method
      */
     @Override

@@ -8,11 +8,10 @@ import android.os.SystemClock;
 import android.util.Log;
 
 /**
- * This class is implement for CSI5175 Assignment 2.
- * This class provides interface between AWS S3 Manager and the Mappad Application.
+ * This class is implemented for CSI5175 Assignment 2.
+ * This class provides interface between AWS S3 Manager and the List Activity.
  * This class defines the name of Android Intents and Bundle Extras.
  * This class defines shortcut methods for using the AWSService.
- * See S3_TransferManager in https://github.com/awslabs/aws-sdk-android-samples
  *
  * @author      Ling Jin
  * @version     1.0
@@ -33,7 +32,7 @@ public class AWSManager {
     public static final int AWS_LISTED = 6;
     public static final int AWS_LIST_FAILED = 7;
     public static final int AWS_FAILED = 8;
-    public static final int AWS_RETRY_TIMEOUT = 10; // second
+    public static final int AWS_RETRY_TIMEOUT = 10; // The time span of the retry timer
     public static final String INTENT_UPLOAD = "upload";
     public static final String INTENT_DOWNLOAD = "download";
     public static final String INTENT_LIST = "list";
@@ -41,16 +40,18 @@ public class AWSManager {
     public static final String INTENT_PROCESS_RESULT = "process_aws_result";
 
     /**
-     * Handle of the main activity
-     * All the activities use the main activity context to invoke the intent, so the result will
-     * sent back to the main activity
+     * Reference to the List Activity, no other Activities use the method defined here
      */
     private static Context MainActivityContext;
+
+    /**
+     * String constant for debugging
+     */
     private static String TAG = "<<<<< AWS Manager >>>>>";
 
     /**
-     * Initialize the context, called by the main activity (List Activity)
-     * @param context this pointer of the main activity
+     * Initializes the context for sending Intent, called by the main activity (List Activity)
+     * @param context this pointer of the List Activity
      */
     public static void setContext(Context context) {
         if(context instanceof Activity_List) {
@@ -58,34 +59,45 @@ public class AWSManager {
         }
     }
 
+    /**
+     * Short hand methods for invoking AWS S3 service immediately.
+     * @param filename name of the file to be read from/written to
+     */
     public static void list(String filename) {
         getImmediateService(INTENT_LIST, filename);
     }
-    public static void listLater(String filename) {
-        getLatentService(INTENT_LIST, filename);
-    }
-
     public static void upload(String filename) {
         getImmediateService(INTENT_UPLOAD, filename);
+    }
+    public static void download(String filename) {
+        getImmediateService(INTENT_DOWNLOAD, filename);
+    }
+    public static void delete(String filename) {
+        getImmediateService(INTENT_DELETE, filename);
+    }
+
+    /**
+     * Short hand methods for invoking AWS S3 service after a while.
+     * @param filename name of the file to be read from/written to
+     */
+    public static void listLater(String filename) {
+        getLatentService(INTENT_LIST, filename);
     }
     public static void uploadLater(String filename) {
         getLatentService(INTENT_UPLOAD, filename);
     }
-
-    public static void download(String filename) {
-        getImmediateService(INTENT_DOWNLOAD, filename);
-    }
     public static void downloadLater(String filename) {
         getLatentService(INTENT_DOWNLOAD, filename);
-    }
-
-    public static void delete(String filename) {
-        getImmediateService(INTENT_DELETE, filename);
     }
     public static void deleteLater(String filename) {
         getLatentService(INTENT_DELETE, filename);
     }
 
+    /**
+     * Sends Intent to Service immediately.
+     * @param action action of the Intent
+     * @param filename name of the file to be read from/written to
+     */
     public static void getImmediateService(String action, String filename) {
         if(MainActivityContext != null) {
             Log.d(TAG, "Immediately " + action + " " + filename);
@@ -96,6 +108,12 @@ public class AWSManager {
         }
     }
 
+    /**
+     * Sets up a timer, after which expires, an intent will be sent to the AWS Service. This method
+     * is used for synchronizing files when the network connection is gone.
+     * @param action action of the Intent
+     * @param filename name of the file to be read from/written to
+     */
     public static void getLatentService(String action, String filename) {
 
         if(MainActivityContext != null) {

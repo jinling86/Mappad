@@ -17,12 +17,21 @@ import java.util.ArrayList;
 import java.util.Date;
 
 /**
- * This class is implement for CSI5175 Assignment 2.
- * NoteManager stores the date of the note. It is in charge of
- *      1. reading data from application internal file;
- *      2. saving the in-memory data to file;
- *      3. providing support for user interface facilities;
- *      4. restore note from the file downloaded from AWS S3 server.
+ * This class is implemented for CSI5175 Assignment 2.
+ * NoteManager stores the data of the note. It is in charge of
+ *      1. maintaining an index of the notes in the application;
+ *      2. reading notes and note index from application internal storage;
+ *      3. saving changes to files;
+ *      4. providing supports for user interface facilities;
+ *      5. restoring notes from the file downloaded from AWS S3 server;
+ *      6. determining which files should be uploaded/downloaded/deleted from the AWS S3 server:
+ *          - If a local file does not exist on AWS S3 server, uploads it;
+ *          - If a local file is modified, uploads it;
+ *          - If a file on AWS S3 server is not in cell phone, downloads it;
+ *          - If a note on AWS S3 server is newer than the local one, downloads it;
+ *          - If a note on AWS S3 server is older than the local one, uploads it;
+ *          - If a note is marked "deleted" or being deleted, then deletes it.
+ * The name of a note file consists of "note_", creation time string and ".txt".
  *
  * @author      Ling Jin
  * @version     1.0
@@ -39,42 +48,56 @@ public class NoteManager {
     public static final String EXTRA_LONGITUDE = "longitude";
 
     /**
-     * Default title of the note, used when the user does not specifies a title for a note
+     * Default title of the note, used when the user does not specifies a title for a note.
      */
     public static final String DEFAULT_TITLE = "No title";
 
     /**
-     * Indicators of further operations
-     * Update gives a hint that the note list need to be updated
-     * Synchronize gives a hint that the file need to be uploaded to the AWS S3 server
+     * Indicators of further operations, synchronize gives a hint that the file need to be uploaded
+     * to the AWS S3 server.
      */
     public static final int NEW_NODE_POSITION = -1;
     public static final int DO_NOT_NEED_SYNCHRONIZE = 0;
     public static final int NEED_SYNCHRONIZE = 1;
 
     /**
-     * Full names of the internal files
-     * String constants for debugging and file storage
+     * Name components of the note file; full directory path for using by other activities; and
+     * string constants for debugging.
      */
-    private static String TAG = "<<<<< Note Manager >>>>>";
-
     public static String TMP_TAG = ".tmp";
     public static String INDEX_FILE_NAME = "notes_index";
     public static String NOTE_PREFIX = "note_";
     public static String NOTE_SUFFIX = ".txt";
     public static String EXT_FILE_DIR = null;
+    private static String TAG = "<<<<< Note Manager >>>>>";
+
+    /**
+     * Format of the created/modified time string.
+     */
     private static SimpleDateFormat mTimeFormat = new SimpleDateFormat("yyyy.MM.dd kk:mm:ss.SSS");
+
+    /**
+     * A time span for comparison of the modified time, for the uploading process introduces some
+     * latency so the modified time obtain online should be later than the real modified time.
+     */
     private static int TIME_SPAN = 30000;
 
     /**
-     * this reference, used by inner classes
+     * this reference of the List Activity, used for obtaining the default storage location
      */
     private Context mContext = null;
 
+    /**
+     * Array of notes, note indexes and a indicator for jumping off the deleted note items
+     */
     private ArrayList<NoteItem> mAllNotes = null;
     private ArrayList<NoteIndex> mNoteIndex = null;
     private ArrayList<Integer> mRealIndex = null;
 
+    /**
+     * Initializes the notes, may be called by Map Activity and List Activity
+     * @param context reference of the caller Activity
+     */
     public NoteManager(Context context) {
         mContext = context;
         read();
@@ -88,19 +111,43 @@ public class NoteManager {
         }
     }
 
+    /**
+     * Gets the temporary name of the note file
+     * @param internalName normal file name
+     * @return the temporary name
+     */
     public static String getTmpName(String internalName) {
         return internalName + TMP_TAG;
     }
+
+    /**
+     * @param internalName normal file name
+     * @return file name with its full path and a tmp tag
+     */
     public static String getTmpFullName(String internalName) {
         return EXT_FILE_DIR + "/" + internalName + TMP_TAG;
     }
+
+    /**
+     * @param internalName normal file name
+     * @return file name with its full path
+     */
     public static String getFullName(String internalName) {
         return EXT_FILE_DIR + "/" + internalName;
     }
 
     /**
-     * Update the note using the passed arguments
-     * @param index position of the note in the ArrayList
+     * Constructs note file name based on the time string
+     * @param timeString fixed length time string
+     * @return file name
+     */
+    private String getNoteFilename(String timeString) {
+        return (NOTE_PREFIX + timeString + NOTE_SUFFIX);
+    }
+
+    /**
+     * Update thes note using the passed arguments
+     * @param index position of the note in the ArrayList, without the deleted items
      * @param title note title, modified to "no title" if it is empty
      * @param content note content, will always be empty
      * @param latitude note location
@@ -140,6 +187,7 @@ public class NoteManager {
                 noteItem.mLongitude = longitude;
             }
             if(contentChanged) {
+                // Convert time format
                 Long currentTime = System.currentTimeMillis();
                 noteItem.mModifiedTime = mTimeFormat.format(new Date(currentTime));
                 noteIndex.mModifiedTime = currentTime;
@@ -158,9 +206,8 @@ public class NoteManager {
     }
 
     /**
-     * Add a new note
-     * This method always causes changes of the local file, so the caller should upload the file
-     * without a return value
+     * Adds a new note. Although this method always changes of the local file, but as the files is
+     * unmodified, it is not necessary to upload the file immediately.
      * @param title note title, modified to "no title" if it is empty
      * @param content note content, will always be empty
      * @param latitude note location
@@ -272,12 +319,8 @@ public class NoteManager {
         }
     }
 
-    private String getNoteFilename(String timeString) {
-        return (NOTE_PREFIX + timeString + NOTE_SUFFIX);
-    }
-
     /**
-     * Delete a note, and save the node in file
+     * Deletes a note, and save the node in file
      * @param index deleting item storage position
      */
     public void deleteNote(int index) {
@@ -298,14 +341,13 @@ public class NoteManager {
             noteIndex.mModifiedTime = currentTime;
             noteItem.mModifiedTime = mTimeFormat.format(new Date(currentTime));
 
-            // Delete the note from the list view
             adjustRealIndex();
             save();
         }
     }
 
     /**
-     * Return the number of items of current note, used in iteration
+     * Return the number of notes, used in iteration
      * @return number of items
      */
     public int size() {
@@ -380,6 +422,9 @@ public class NoteManager {
         Log.d(TAG, "Notes recovered");
     }
 
+    /**
+     * Does somethings when I/O fails. Hope this never happens.
+     */
     private void errorRecovery() {
         // What should I do... let's make things worse
         // Discard all notes if any of the read/write operations fails
@@ -390,12 +435,13 @@ public class NoteManager {
     }
 
     /**
-     * Return the names of files that need to be uploaded to AWS S3 Server
+     * Returns the names of files that need to be uploaded to AWS S3 Server
      * @return file names
      */
     public ArrayList<String> getFileNamesForSending() {
         ArrayList<String> fileNames = new ArrayList<String>();
         for(NoteIndex index : mNoteIndex) {
+            // Ignore the files should be deleted
             if(!index.mSynchronized && !index.mDeleted) {
                 fileNames.add(index.mFileName);
                 Log.d(TAG, "Intend to send " + index.mFileName);
@@ -405,7 +451,7 @@ public class NoteManager {
     }
 
     /**
-     * Return the names of the note files that need to be downloaded
+     * Returns the names of the note files that need to be downloaded
      * @return file names
      */
     public ArrayList<String> getFileNamesForReceiving() {
@@ -464,6 +510,10 @@ public class NoteManager {
         return fileNames;
     }
 
+    /**
+     * Returns the names of the files need to be deleted from the AWS S3 server
+     * @return file names
+     */
     public ArrayList<String> getFileNamesForDeleting() {
         ArrayList<String> fileNames = new ArrayList<String>();
         for(NoteIndex index : mNoteIndex) {
@@ -475,6 +525,10 @@ public class NoteManager {
         return fileNames;
     }
 
+    /**
+     * Processes the sending confirmation, sets the file to be synchronized.
+     * @param filename the name of the sent file
+     */
     public void confirmSend(String filename) {
         for(NoteIndex index: mNoteIndex) {
             if(filename.compareTo(index.mFileName) == 0) {
@@ -485,6 +539,11 @@ public class NoteManager {
         }
     }
 
+    /**
+     * A helper method, adds a new node into system.
+     * @param addPosition the right position of the note, in chronological manner
+     * @param noteItem reference of the note
+     */
     public void addNoteFromExternal(int addPosition, NoteItem noteItem) {
         NoteIndex newIndex = new NoteIndex();
         try {
@@ -503,6 +562,11 @@ public class NoteManager {
         mAllNotes.add(addPosition, noteItem);
     }
 
+    /**
+     * Processes the received note file. Adds it into the right place. Saves it onto disk, and
+     * deletes the temporary file.
+     * @param filename name of the temporary file
+     */
     public void confirmReceive(String filename) {
         try {
             NoteItem aNote = new NoteItem();
@@ -543,6 +607,11 @@ public class NoteManager {
         }
     }
 
+    /**
+     * Processes the confirmation of file deletion, delete the note reference in the application
+     * and also deletes the note file.
+     * @param filename file name
+     */
     public void confirmDelete(String filename) {
         int position = NEW_NODE_POSITION;
         for(int i = 0; i < mNoteIndex.size(); i++) {
@@ -565,8 +634,9 @@ public class NoteManager {
 
     /**
      * A static method for the Activities other than the main Activity to update the internal file.
-     * The path and name of the file is needed in this case.
-     * The file needs to be uploaded to AWS S3 Server if it has been really modified.
+     * The method is firstly implemented for use of Edit Activity which does not has an instance of
+     * the notes. As the software being modified, this method is not necessary as List Activity
+     * saves the notes every time it modifies the notes. But this method is still kept as a memory.
      * @param index position of the note in the ArrayList
      * @param title note title, modified to "no title" if it is empty
      * @param content note content, will always be empty

@@ -10,12 +10,15 @@ import java.io.PrintWriter;
 /**
  * This class is implement for CSI5175 Assignment 2.
  * This class defines the items of the notes.
- * A note consists of a title, a content and the location information provided by the author.
+ * A note consists of a title/label, a content and the location information provided by the author.
  * The content field is invisible in the user interface, it remains in the code so that we have
- * easily switch back to the notepad that does not store location information. The items should
- * implements Serializable Interface, so it can be automatically written to an output stream. In
- * order to use the output stream, this class cannot be declared as an inner class.
- * This class is put in an individual file so as to be displayed in a good manner.
+ * easily switch back to the notepad that does not store location information. The class implements
+ * methods that write/read itself to/from text file. The test files should be in readable format.
+ * The file is named followed its creation time. So all the files have unique names in common
+ * situation. The creation time is stored, though not necessary. It can be deduced from the file
+ * name. The modification time of the file is also stored, it is used to distinguish which file
+ * is newer, so will be kept. This field can also be discarded by implementing a more powerful
+ * internal note index processing method, which do not need to read modification time from note.
  *
  * @author      Ling Jin
  * @version     1.0
@@ -33,6 +36,9 @@ public class NoteItem {
     public String mCreatedTime;
     public String mModifiedTime;
 
+    /**
+     * Names of note items
+     */
     private static String FILE_NAME_PREFIX     = "File name     : ";
     private static String CREATED_TIME_PREFIX  = "Created Time  : ";
     private static String MODIFIED_TIME_PREFIX = "Modified Time : ";
@@ -41,6 +47,11 @@ public class NoteItem {
     private static String LONGITUDE_PREFIX     = "Longitude     : ";
     private static String LATITUDE_PREFIX      = "Latitude      : ";
 
+    /**
+     * Writes note to an output stream in a readable format. The order of the items should be as
+     * the same sequence as the readFromStream method.
+     * @param outputStream a file stream
+     */
     public void writeToStream(DataOutputStream outputStream) {
         PrintWriter writer = new PrintWriter(outputStream);
         writer.print(FILE_NAME_PREFIX       + mNoteFilename + "\n");
@@ -53,6 +64,12 @@ public class NoteItem {
         writer.close();
     }
 
+    /**
+     * Reads the note from a text file. The reading order should be as the same order as the writing
+     * method.
+     * @param inputStream a file stream
+     * @throws IOException throws when the file format is wrong or fails to read the file
+     */
     public void readFromStream(DataInputStream inputStream) throws IOException {
         try {
             BufferedReader reader = new BufferedReader(new InputStreamReader(inputStream));
@@ -71,6 +88,12 @@ public class NoteItem {
         }
     }
 
+    /**
+     * Extracts the String or Long in the input line.
+     * @param aLine a line read from file
+     * @return a note item, String or Long
+     * @throws NoSuchFieldException throws when encounters wrong format
+     */
     Object getContent(String aLine) throws NoSuchFieldException {
         if(aLine.startsWith(FILE_NAME_PREFIX) && aLine.length() >= FILE_NAME_PREFIX.length()) {
             return aLine.substring(FILE_NAME_PREFIX.length());

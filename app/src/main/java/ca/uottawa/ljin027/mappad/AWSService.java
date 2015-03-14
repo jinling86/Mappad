@@ -27,11 +27,8 @@ import java.util.ArrayList;
  * This class is implemented for CSI5175 Assignment 2.
  * This class implements an Android Service that manages the communication with Amazon Web Services
  * Simple Storage Service service. The service runs in the background of the applications. The
- * server cannot be communicated directed in Activity unless use an AsyncTask. Here, the
- * TransferManager is used to manage the connection. The TransferManager is also suitable for
- * transmitting large files.
- * The file uploading or downloading is triggered by Intent of the Activities, the transmission
- * results are sent back to the activities by broadcast the result Intent.
+ * server cannot be communicated directed in Activity unless use an AsyncTask. All the
+ * communication is triggered and responded using Intents.
  *
  * PLEASE KEY THE ACCESS KEY AND SECRET ACCESS KEY SAFE!
  *
@@ -49,32 +46,33 @@ import java.util.ArrayList;
  */
 public class AWSService extends IntentService {
     /**
-     * Bucket (Server) name, key (file) name and access keys for the file save in AWS S3 Server
+     * Bucket/Server name and access keys for the file save in AWS S3 Server. All the applications
+     * share the same configuration. This can be improved by introduing AWS Cognito.
      */
     private static final String BUCKET_NAME = "ca.uottawa.ljin027.mappad";
     private static final String ACCESS_KEY = "AKIAJWAGGRMXROXFWDEQ";
     private static final String SECRET_ACCESS_KEY = "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";
+
     /**
      * String constant for debugging
      */
     private static final String TAG = "<<<<< AWS Service >>>>>";
+
     /**
-     * Reference of current TransferManager and current object, used in inner classes
+     * Reference of AWS S3 client and network connection indicator
      */
     private NetworkInfo mNetworkInfo = null;
-    private IntentService mContext = null;
     private AmazonS3Client mS3Client = null;
 
     /**
-     * Construct the Android Service class
+     * Constructs the Android Service class, nothing to do
      */
     public AWSService() {
         super(TAG);
-        mContext = this;
     }
 
     /**
-     * Create a TransferManager using AWS Keys
+     * Creates a AWS S3 client using AWS Keys, initializes the network connection indicator.
      */
     public void onCreate() {
         super.onCreate();
@@ -85,8 +83,8 @@ public class AWSService extends IntentService {
     }
 
     /**
-     * Receive and process Intents
-     * @param intent Intent from Activities
+     * Receives and dispatches Intents.
+     * @param intent Intent from Activity List
      */
     @Override
     public void onHandleIntent(Intent intent) {
@@ -107,6 +105,12 @@ public class AWSService extends IntentService {
         }
     }
 
+    /**
+     * Downloads a file from AWS S3 server. Not try to download the file if the network does not
+     * work. The required file should always exists in the server. It should be fetched if the
+     * network works. The downloaded file is added a ".tmp" suffix.
+     * @param file_name the name of the downloading file
+     */
     private void download(String file_name) {
         if(mNetworkInfo == null || !mNetworkInfo.isConnectedOrConnecting()) {
             Log.d(TAG, "No connection while downloading");
@@ -131,6 +135,10 @@ public class AWSService extends IntentService {
         }
     }
 
+    /**
+     * Uploads a file from AWS S3 server. Not try to upload the file if the network does not work.
+     * @param file_name the name of the uploading file
+     */
     private void upload(String file_name) {
         if(mNetworkInfo == null || !mNetworkInfo.isConnectedOrConnecting()) {
             sendResult(AWSManager.AWS_UPLOAD_FAILED, file_name);
@@ -155,6 +163,11 @@ public class AWSService extends IntentService {
         }
     }
 
+    /**
+     * Deletes a file from AWS S3 server. Not try to delete the file if the network does not work.
+     * Typically, AWS S3 server always returns success for deletion.
+     * @param file_name the name of the deleting file
+     */
     private void delete(String file_name) {
         if(mNetworkInfo == null || !mNetworkInfo.isConnectedOrConnecting()) {
             sendResult(AWSManager.AWS_DELETE_FAILED, file_name);
@@ -178,6 +191,11 @@ public class AWSService extends IntentService {
         }
     }
 
+    /**
+     * Reads the file names on the AWS S3 server and uses the names to build a temporary index file,
+     * which will be used for determining which files need to be uploaded and downloaded.
+     * @param file_name the name of the temporary index file
+     */
     private void list(String file_name) {
         if(mNetworkInfo == null || !mNetworkInfo.isConnectedOrConnecting()) {
             sendResult(AWSManager.AWS_DELETE_FAILED, file_name);
@@ -188,6 +206,9 @@ public class AWSService extends IntentService {
             ArrayList<NoteIndex> noteIndex = new ArrayList<NoteIndex> ();
             ObjectListing objectListing = mS3Client.listObjects(new ListObjectsRequest().withBucketName(BUCKET_NAME));
             for (S3ObjectSummary objectSummary : objectListing.getObjectSummaries()) {
+                // Constructs the note index from the names of the files on the server
+                // The names should be in a chronological order and the most newly created file is
+                // the last file
                 NoteIndex anIndex = new NoteIndex();
                 anIndex.mFileName = objectSummary.getKey();
                 anIndex.mCreatedTime = NoteIndex.getTimeFromName(anIndex.mFileName);
@@ -219,15 +240,14 @@ public class AWSService extends IntentService {
     }
 
     /**
-     * A helper method for constructing Intent
-     * The Intent will be broadcast to system, the List Activity will listen and process it
-     * @param result result code of the uploading/downloading operation
+     * Constructs an Intent which will be broadcast back to the List Activity
+     * @param result result code of the operation
      */
     private void sendResult(int result, String filename) {
         Intent postAWSIntent = new Intent(AWSManager.INTENT_PROCESS_RESULT);
         postAWSIntent.putExtra(AWSManager.EXTRA_AWS_RESULT, result);
         postAWSIntent.putExtra(AWSManager.EXTRA_INTERNAL_FILENAME, filename);
-        mContext.sendBroadcast(postAWSIntent);
+        sendBroadcast(postAWSIntent);
     }
 
 }
