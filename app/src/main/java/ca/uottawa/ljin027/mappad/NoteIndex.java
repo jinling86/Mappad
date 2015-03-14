@@ -49,7 +49,7 @@ public class NoteIndex implements Serializable {
             throw new NoSuchFieldException("Failed to parse filename " + filename);
         } else {
             String createdTimeString = filename.substring(NoteManager.NOTE_PREFIX.length(), NoteManager.NOTE_PREFIX.length()+DATE_LENGTH);
-            return Long.getLong(createdTimeString);
+            return Long.parseLong(createdTimeString, DATE_LENGTH);
         }
     }
 }
