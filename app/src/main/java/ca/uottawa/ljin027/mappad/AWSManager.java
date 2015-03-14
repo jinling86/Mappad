@@ -28,13 +28,15 @@ public class AWSManager {
     public static final int AWS_UPLOAD_FAILED = 1;
     public static final int AWS_DOWNLOADED = 2;
     public static final int AWS_DOWNLOAD_FAILED = 3;
-    public static final int AWS_DOWNLOAD_NO_FILE = 4;
-    public static final int AWS_DELETED = 5;
-    public static final int AWS_DELETE_FAILED = 6;
-    public static final int AWS_FAILED = 7;
+    public static final int AWS_DELETED = 4;
+    public static final int AWS_DELETE_FAILED = 5;
+    public static final int AWS_LISTED = 6;
+    public static final int AWS_LIST_FAILED = 7;
+    public static final int AWS_FAILED = 8;
     public static final int AWS_RETRY_TIMEOUT = 10; // second
     public static final String INTENT_UPLOAD = "upload";
     public static final String INTENT_DOWNLOAD = "download";
+    public static final String INTENT_LIST = "list";
     public static final String INTENT_DELETE = "delete";
     public static final String INTENT_PROCESS_RESULT = "process_aws_result";
 
@@ -56,26 +58,30 @@ public class AWSManager {
         }
     }
 
+    public static void list(String filename) {
+        getImmediateService(INTENT_LIST, filename);
+    }
+    public static void listLater(String filename) {
+        getLatentService(INTENT_LIST, filename);
+    }
+
     public static void upload(String filename) {
         getImmediateService(INTENT_UPLOAD, filename);
+    }
+    public static void uploadLater(String filename) {
+        getLatentService(INTENT_UPLOAD, filename);
     }
 
     public static void download(String filename) {
         getImmediateService(INTENT_DOWNLOAD, filename);
     }
-
-    public static void delete(String filename) {
-        getImmediateService(INTENT_DELETE, filename);
-    }
-
-    public static void uploadLater(String filename) {
-        getLatentService(INTENT_UPLOAD, filename);
-    }
-
     public static void downloadLater(String filename) {
         getLatentService(INTENT_DOWNLOAD, filename);
     }
 
+    public static void delete(String filename) {
+        getImmediateService(INTENT_DELETE, filename);
+    }
     public static void deleteLater(String filename) {
         getLatentService(INTENT_DELETE, filename);
     }
@@ -89,7 +95,6 @@ public class AWSManager {
             MainActivityContext.startService(intent);
         }
     }
-    static int i = 0;
 
     public static void getLatentService(String action, String filename) {
 

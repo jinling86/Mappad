@@ -58,11 +58,13 @@ public class NoteManager {
      */
     private static String TAG = "<<<<< Note Manager >>>>>";
 
-    public static String TMP_TAG = "_tmp";
+    public static String TMP_TAG = ".tmp";
     public static String INDEX_FILE_NAME = "notes_index";
-    private static String NOTE_PREFIX = "note_";
+    public static String NOTE_PREFIX = "note_";
+    public static String NOTE_SUFFIX = ".txt";
     public static String EXT_FILE_DIR = null;
     private static SimpleDateFormat mTimeFormat = new SimpleDateFormat("yyyy.MM.dd kk:mm:ss.SSS");
+    private static int TIME_SPAN = 30000;
 
     /**
      * this reference, used by inner classes
@@ -72,7 +74,6 @@ public class NoteManager {
     private ArrayList<NoteItem> mAllNotes = null;
     private ArrayList<NoteIndex> mNoteIndex = null;
     private ArrayList<Integer> mRealIndex = null;
-    private static boolean mItemDeleted = false;
 
     public NoteManager(Context context) {
         mContext = context;
@@ -272,7 +273,7 @@ public class NoteManager {
     }
 
     private String getNoteFilename(String timeString) {
-        return (NOTE_PREFIX + timeString + ".txt");
+        return (NOTE_PREFIX + timeString + NOTE_SUFFIX);
     }
 
     /**
@@ -400,12 +401,6 @@ public class NoteManager {
                 Log.d(TAG, "Intend to send " + index.mFileName);
             }
         }
-        // Add the index file if any file is to be sent
-        if(fileNames.size() != 0 || mItemDeleted) {
-            fileNames.add(0, INDEX_FILE_NAME);
-            Log.d(TAG, "Intend to send " + INDEX_FILE_NAME);
-            mItemDeleted = false;
-        }
         return fileNames;
     }
 
@@ -430,11 +425,11 @@ public class NoteManager {
                 if(cTimeCompResult == 0) {
                     // Same file, compare modification time
                     int mTimeCompResult = cloudItem.mModifiedTime.compareTo(localItem.mModifiedTime);
-                    if(mTimeCompResult > 0) {
+                    if(mTimeCompResult > TIME_SPAN) {
                         // The cloud file is newer, download it
                         fileNames.add(cloudItem.mFileName);
                         Log.d(TAG, "Intend to fetch " + cloudItem.mFileName);
-                    } else if(mTimeCompResult < 0) {
+                    } else if(mTimeCompResult < -TIME_SPAN) {
                         // The cloud file is out of date, upload it
                         localItem.mSynchronized = false;
                     }
@@ -500,7 +495,7 @@ public class NoteManager {
             e.printStackTrace();
             return;
         }
-        newIndex.mFileName = newIndex.mCreatedTime.toString();
+        newIndex.mFileName = getNoteFilename(newIndex.mCreatedTime.toString());
         newIndex.mModified = true;
         newIndex.mSynchronized = true;
         newIndex.mDeleted = false;
@@ -520,7 +515,6 @@ public class NoteManager {
             Log.d(TAG, "Process receiving confirmation of " + filename);
             boolean addToLast = true;
             for(int i = 0; i < mNoteIndex.size(); i++) {
-
                 int cTimeCompResult = mNoteIndex.get(i).mCreatedTime.compareTo(noteCreatedTime);
                 if(cTimeCompResult == 0) {
                     mAllNotes.set(i, aNote);
@@ -558,14 +552,15 @@ public class NoteManager {
                 break;
             }
         }
-        mNoteIndex.remove(position);
-        mAllNotes.remove(position);
-        // Adjust the real position of the note
-        adjustRealIndex();
-        File localFile = new File(getFullName(filename));
-        localFile.deleteOnExit();
-        save();
-        mItemDeleted = true;
+        if(position != NEW_NODE_POSITION) {
+            mNoteIndex.remove(position);
+            mAllNotes.remove(position);
+            // Adjust the real position of the note
+            adjustRealIndex();
+            File localFile = new File(getFullName(filename));
+            localFile.deleteOnExit();
+            save();
+        }
     }
 
     /**

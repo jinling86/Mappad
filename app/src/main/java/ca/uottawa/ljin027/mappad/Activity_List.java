@@ -159,7 +159,7 @@ public class Activity_List extends ActionBarActivity {
                     .build();
         }
         // Download the notes from AWS S3 Server
-        AWSManager.download(NoteManager.INDEX_FILE_NAME);
+        AWSManager.list(NoteManager.INDEX_FILE_NAME);
         mAWSBusy.set(true);
         Log.d(TAG, "Activity created");
     }
@@ -290,8 +290,7 @@ public class Activity_List extends ActionBarActivity {
                 mNotes.deleteNote(info.position);
 
                 fillList();
-                if(!mAWSBusy.get())
-                    startNewTransmission();
+                startNewTransmission();
                 return true;
         }
         return super.onContextItemSelected(item);
@@ -324,8 +323,7 @@ public class Activity_List extends ActionBarActivity {
                         bundle.getDouble(NoteManager.EXTRA_LONGITUDE))
                         == NoteManager.NEED_SYNCHRONIZE) {
                     fillList();
-                    if(!mAWSBusy.get())
-                        startNewTransmission();
+                    startNewTransmission();
                 }
             } else {
                 // Should not happen
@@ -446,41 +444,33 @@ public class Activity_List extends ActionBarActivity {
             String filename = intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME);
             if(filename == null) {
                 Log.d(TAG, "ERROR, AWS response without filename");
+                return;
             }
             switch (intent.getIntExtra(AWSManager.EXTRA_AWS_RESULT, AWSManager.AWS_FAILED)) {
                 case AWSManager.AWS_UPLOADED:
-                    // File is uploaded successfully, toast a message
-                    if(filename != null)
-                        onFileUploaded(filename);
+                    onFileUploaded(filename);
                     break;
                 case AWSManager.AWS_DOWNLOADED:
-                    // File is downloaded successfully, read the file
-                    if(filename != null) {
-                        onFileDownloaded(filename);
-                        fillList();
-                    }
-                    break;
-                case AWSManager.AWS_DOWNLOAD_NO_FILE:
-                    if(filename != null)
-                        onFileNotExist(filename);
+                    onFileDownloaded(filename);
+                    fillList();
                     break;
                 case AWSManager.AWS_DELETED:
-                    if(filename != null) {
-                        onFileDeleted(filename);
-                        fillList();
-                    }
+                    onFileDeleted(filename);
+                    break;
+                case AWSManager.AWS_LISTED:
+                    onFileListed(filename);
                     break;
                 case AWSManager.AWS_UPLOAD_FAILED:
-                    if(filename != null)
-                        onFileUploadFailure(filename);
+                    onFileUploadFailure(filename);
                     break;
                 case AWSManager.AWS_DOWNLOAD_FAILED:
-                    if(filename != null)
-                        onFileDownloadFailure(filename);
+                    onFileDownloadFailure(filename);
                     break;
                 case AWSManager.AWS_DELETE_FAILED:
-                    if(filename != null)
-                        onFileDeleteFailure(filename);
+                    onFileDeleteFailure(filename);
+                    break;
+                case AWSManager.AWS_LIST_FAILED:
+                    onFileListFailure(filename);
                     break;
                 case AWSManager.AWS_FAILED:
                     // This should not happen
@@ -488,6 +478,29 @@ public class Activity_List extends ActionBarActivity {
                     break;
             }
         }
+    }
+
+    private boolean isRightResponse(String respFilename, String reqFilename, String reqType, boolean resptype) {
+        if(respFilename == null) {
+            Log.d(TAG, "ERROR: AWS " + reqType + " response without a filename");
+            return false;
+        }
+        if(reqType.compareTo(AWSManager.INTENT_LIST) != 0) {
+            if (reqFilename == null) {
+                Log.d(TAG, "ERROR: AWS " + reqType + " response without local filename");
+                return false;
+            }
+            if (reqFilename.compareTo(respFilename) != 0) {
+                Log.d(TAG, "ERROR: AWS " + reqType + " response with a miss matched local filename");
+                Log.d(TAG, "ERROR: i.e. " + respFilename + " v.s. " + reqFilename);
+                return false;
+            }
+        }
+        if(resptype)
+            Log.d(TAG, "AWS response, success to " + reqType + " " + respFilename);
+        else
+            Log.d(TAG, "AWS response, fail to " + reqType + " " + respFilename);
+        return true;
     }
 
     private boolean startNewTransmission() {
@@ -511,241 +524,164 @@ public class Activity_List extends ActionBarActivity {
             }
             Log.d(TAG, "No new AWS mission assigned");
             return false;
+        }
+        return false;
+    }
+
+    private boolean startNextTransmission() {
+        // Send the following files
+        Log.d(TAG, "Start a new transmission while in an unfinished session");
+        if(mFilesToBeDeleted.size() != 0) {
+            Log.d(TAG, "New AWS deleting mission assigned");
+            deleteTopmostNote();
+            return true;
         } else {
-            // Send the following files
-            Log.d(TAG, "AWS server is in previous session, try to start a new transmission");
-            if(mFilesToBeDeleted.size() != 0) {
-                Log.d(TAG, "New AWS deleting mission assigned");
-                deleteTopmostNote();
-                return true;
-            } else {
-                ArrayList<String> tmpDeleteNames = mNotes.getFileNamesForDeleting();
-                while(mFilesToBeUploaded.size() != 0 && tmpDeleteNames.contains(mFilesToBeUploaded.get(0))) {
-                    Log.d(TAG, "Cancel uploading the already deleted file " + mFilesToBeUploaded.get(0));
-                    mFilesToBeUploaded.remove(0);
-                }
-                Log.d(TAG, "New AWS uploading mission assigned");
-                if(mFilesToBeUploaded.size() != 0) {
-                    sendTopmostNote();
-                    return true;
-                }
+            Log.d(TAG, "Check already deleted files in startNextTransmission");
+            ArrayList<String> tmpDeleteNames = mNotes.getFileNamesForDeleting();
+            while(mFilesToBeUploaded.size() != 0 && tmpDeleteNames.contains(mFilesToBeUploaded.get(0))) {
+                Log.d(TAG, "Cancel uploading the already deleted file " + mFilesToBeUploaded.get(0));
+                mFilesToBeUploaded.remove(0);
             }
-            Log.d(TAG, "No new AWS mission assigned");
-            return false;
+            if(mFilesToBeUploaded.size() != 0) {
+                Log.d(TAG, "New AWS uploading mission assigned");
+                sendTopmostNote();
+                return true;
+            }
+        }
+        Log.d(TAG, "No new AWS mission assigned");
+        return false;
+    }
+
+    private void continueTransmission() {
+        if(!startNextTransmission()) {
+            mAWSBusy.set(false);
+            if(!startNewTransmission()) {
+                Log.d(TAG, "All files updated, synchronized");
+                toast("Synchronized");
+            }
         }
     }
 
     private void onFileUploadFailure(String filename) {
-        if(filename == null) {
-            Log.d(TAG, "ERROR: AWS upload response without a filename");
+        if(!isRightResponse(
+                filename,
+                mFilesToBeUploaded.size() != 0 ? mFilesToBeUploaded.get(0): null,
+                AWSManager.INTENT_UPLOAD,
+                true))
             return;
-        }
-        if(mFilesToBeUploaded.size() == 0) {
-            Log.d(TAG, "ERROR: AWS upload response without local filename");
-            return;
-        }
-        if(filename.compareTo(mFilesToBeUploaded.get(0)) != 0) {
-            Log.d(TAG, "ERROR: AWS upload response with a miss matched local filename");
-            Log.d(TAG, "ERROR: i.e. " + filename + " v.s. " + mFilesToBeUploaded.get(0));
-            return;
-        }
-        Log.d(TAG, "AWS response, failed to upload " + filename);
         ArrayList<String> tmpDeleteNames = mNotes.getFileNamesForDeleting();
         if(tmpDeleteNames.contains(filename)) {
             Log.d(TAG, "Cancel uploading the already deleted file " + mFilesToBeUploaded.get(0));
             mFilesToBeUploaded.remove(0);
             // No file need to receive
-            if(!startNewTransmission()) {
-                mAWSBusy.set(false);
-                if(!startNewTransmission()) {
-                    Log.d(TAG, "All files updated, synchronized");
-                    toast("Synchronized");
-                }
-            }
-            return;
+            continueTransmission();
         } else {
             AWSManager.uploadLater(filename);
-            return;
         }
     }
 
     private void onFileUploaded(String filename) {
-        if(filename == null) {
-            Log.d(TAG, "ERROR: AWS upload response without a filename");
+        if(!isRightResponse(
+                filename,
+                mFilesToBeUploaded.size() != 0 ? mFilesToBeUploaded.get(0): null,
+                AWSManager.INTENT_UPLOAD,
+                true))
             return;
-        }
-        if(mFilesToBeUploaded.size() == 0) {
-            Log.d(TAG, "ERROR: AWS upload response without local filename");
-            return;
-        }
-        if(filename.compareTo(mFilesToBeUploaded.get(0)) != 0) {
-            Log.d(TAG, "ERROR: AWS upload response with a miss matched local filename");
-            Log.d(TAG, "ERROR: i.e. " + filename + " v.s. " + mFilesToBeUploaded.get(0));
-            return;
-        }
-        Log.d(TAG, "AWS response, success to upload " + filename);
         mNotes.confirmSend(filename);
         mFilesToBeUploaded.remove(0);
-        if(!startNewTransmission()) {
-            mAWSBusy.set(false);
-            if(!startNewTransmission()) {
-                Log.d(TAG, "All files updated, synchronized");
-                toast("Synchronized");
-            }
-        }
+        continueTransmission();
     }
 
     private void onFileDeleteFailure(String filename) {
-        if(filename == null) {
-            Log.d(TAG, "ERROR: AWS delete response without a filename");
+        if(!isRightResponse(
+                filename,
+                mFilesToBeDeleted.size() != 0 ? mFilesToBeDeleted.get(0): null,
+                AWSManager.INTENT_DELETE,
+                false))
             return;
-        }
-        if(mFilesToBeDeleted.size() == 0) {
-            Log.d(TAG, "ERROR: AWS delete response without local filename");
-            return;
-        }
-        if(filename.compareTo(mFilesToBeDeleted.get(0)) != 0) {
-            Log.d(TAG, "ERROR: AWS delete response with a miss matched local filename");
-            Log.d(TAG, "ERROR: i.e. " + filename + " v.s. " + mFilesToBeUploaded.get(0));
-            return;
-        }
-        Log.d(TAG, "AWS response, failed to delete " + filename);
         AWSManager.deleteLater(filename);
     }
 
     private void onFileDeleted(String filename) {
-        if(filename == null) {
-            Log.d(TAG, "ERROR: AWS delete response without a filename");
+        if(!isRightResponse(
+                filename,
+                mFilesToBeDeleted.size() != 0 ? mFilesToBeDeleted.get(0): null,
+                AWSManager.INTENT_DELETE,
+                true))
             return;
-        }
-        if(mFilesToBeDeleted.size() == 0) {
-            Log.d(TAG, "ERROR: AWS delete response without local filename");
-            return;
-        }
-        if(filename.compareTo(mFilesToBeDeleted.get(0)) != 0) {
-            Log.d(TAG, "ERROR: AWS delete response with a miss matched local filename");
-            Log.d(TAG, "ERROR: i.e. " + filename + " v.s. " + mFilesToBeUploaded.get(0));
-            return;
-        }
-        Log.d(TAG, "AWS response, success to delete " + filename);
 
         mNotes.confirmDelete(filename);
         mFilesToBeDeleted.remove(0);
-        if(!startNewTransmission()) {
-            mAWSBusy.set(false);
-            if(!startNewTransmission()) {
-                Log.d(TAG, "All files updated, synchronized");
-                toast("Synchronized");
-            }
-        }
+        continueTransmission();
     }
 
     private void onFileDownloadFailure(String filename) {
-        if (filename == null) {
-            Log.d(TAG, "ERROR: AWS download response without a filename");
+        if(!isRightResponse(
+                filename,
+                mFilesToBeDownloaded.size() != 0 ? mFilesToBeDownloaded.get(0): null,
+                AWSManager.INTENT_DOWNLOAD,
+                false))
             return;
-        }
-        if(filename.compareTo(NoteManager.INDEX_FILE_NAME) != 0) {
-            if (mFilesToBeDownloaded.size() == 0) {
-                Log.d(TAG, "ERROR: AWS download response without local filename");
-                return;
-            }
-            if (mFilesToBeDownloaded.get(0).compareTo(filename) != 0) {
-                Log.d(TAG, "ERROR: AWS download response with a miss matched local filename");
-                Log.d(TAG, "ERROR: i.e. " + filename + " v.s. " + mFilesToBeUploaded.get(0));
-                return;
-            }
-        }
-        Log.d(TAG, "AWS response, failed to download " + filename);
         AWSManager.downloadLater(filename);
     }
 
     private void onFileDownloaded(String filename) {
+        if(!isRightResponse(
+                filename,
+                mFilesToBeDownloaded.size() != 0 ? mFilesToBeDownloaded.get(0): null,
+                AWSManager.INTENT_DOWNLOAD,
+                true))
+            return;
+
+        // Confirm the received file, update ListView
+        Log.d(TAG, "Reading the downloaded note file...");
+        mNotes.confirmReceive(filename);
+        fillList();
+        mFilesToBeDownloaded.remove(0);
+        // Try to download next file
+        if (mFilesToBeDownloaded.size() != 0) {
+            Log.d(TAG, "New AWS downloading mission assigned");
+            receiveTopmostNote();
+            return;
+        }
+
+        // No file need to receive
+        continueTransmission();
+    }
+
+    private void onFileListed(String filename) {
+        if(!isRightResponse(filename, null, AWSManager.INTENT_LIST, true))
+            return;
         if(filename == null) {
-            Log.d(TAG, "ERROR: AWS download response without a filename");
+            Log.d(TAG, "ERROR: AWS list response without a filename");
             return;
         }
         Log.d(TAG, "AWS response, success to download " + filename);
-        if(filename.compareTo(NoteManager.INDEX_FILE_NAME) == 0) {
-            // If it is the index file, get all the files need to be further received
-            Log.d(TAG, "Reading the downloaded index file...");
-            mFilesToBeDownloaded = mNotes.getFileNamesForReceiving();
-            if(mFilesToBeDownloaded.size() != 0) {
-                // Request one more file
-                Log.d(TAG, "New AWS downloading mission assigned");
-                receiveTopmostNote();
-                return;
-            }
-        } else {
-            if (mFilesToBeDownloaded.size() == 0) {
-                Log.d(TAG, "ERROR: AWS download response without local filename");
-                return;
-            }
-            if (mFilesToBeDownloaded.get(0).compareTo(filename) != 0) {
-                Log.d(TAG, "ERROR: AWS download response with a miss matched local filename");
-                Log.d(TAG, "ERROR: i.e. " + filename + " v.s. " + mFilesToBeUploaded.get(0));
-                return;
-            }
-            // Confirm the received file, update ListView
-            Log.d(TAG, "Reading the downloaded note file...");
-            mNotes.confirmReceive(filename);
-            fillList();
-            mFilesToBeDownloaded.remove(0);
-            // Try to download next file
-            if (mFilesToBeDownloaded.size() != 0) {
-                Log.d(TAG, "New AWS downloading mission assigned");
-                receiveTopmostNote();
-                return;
-            }
-        }
-
-        // No file need to receive
-        if(!startNewTransmission()) {
-            mAWSBusy.set(false);
-            if(!startNewTransmission()) {
-                Log.d(TAG, "All files updated, synchronized");
-                toast("Synchronized");
-            }
-        }
-    }
-
-    void onFileNotExist(String filename) {
-        if(filename == null) {
-            Log.d(TAG, "ERROR: AWS download response without a filename");
+        mFilesToBeDownloaded = mNotes.getFileNamesForReceiving();
+        if(mFilesToBeDownloaded.size() != 0) {
+            // Request one more file
+            Log.d(TAG, "New AWS downloading mission assigned");
+            receiveTopmostNote();
             return;
         }
-        Log.d(TAG, "AWS response, disable to download " + filename);
-        if(filename.compareTo(NoteManager.INDEX_FILE_NAME) != 0) {
-            if (mFilesToBeDownloaded.size() == 0) {
-                Log.d(TAG, "ERROR: AWS download response without local filename");
-                return;
-            }
-            if (mFilesToBeDownloaded.get(0).compareTo(filename) != 0) {
-                Log.d(TAG, "ERROR: AWS download response with a miss matched local filename");
-                return;
-            }
-            // Confirm the received file, update ListView
-            mFilesToBeDownloaded.remove(0);
-            // Try to download next file
-            if (mFilesToBeDownloaded.size() != 0) {
-                Log.d(TAG, "New AWS downloading mission assigned");
-                receiveTopmostNote();
-                return;
-            }
-        }
 
         // No file need to receive
-        if(!startNewTransmission()) {
-            mAWSBusy.set(false);
-            if(!startNewTransmission()) {
-                Log.d(TAG, "All files updated, synchronized");
-                toast("Synchronized");
-            }
-        }
+        continueTransmission();
+    }
+
+    private void onFileListFailure(String filename) {
+        if(!isRightResponse(
+                filename,
+                mFilesToBeDownloaded.size() != 0 ? mFilesToBeDownloaded.get(0): null,
+                AWSManager.INTENT_LIST,
+                false))
+            return;
+        AWSManager.listLater(filename);
     }
 
     private void updateNotesToBeDeletedList() {
         if(!mAWSBusy.get()) {
+            Log.d(TAG, "Update files to be deleted list");
             ArrayList<String> names = mNotes.getFileNamesForDeleting();
             for(String name: names) {
                 if(!mFilesToBeDeleted.contains(name)) {
@@ -760,6 +696,7 @@ public class Activity_List extends ActionBarActivity {
 
     private void updateNotesToBeSendList() {
         if(!mAWSBusy.get()) {
+            Log.d(TAG, "Update files to be sent list");
             ArrayList<String> names = mNotes.getFileNamesForSending();
             for(String name: names) {
                 if(!mFilesToBeUploaded.contains(name)) {
@@ -830,8 +767,7 @@ public class Activity_List extends ActionBarActivity {
             }
             mIsDeleting = false;
             fillList();
-            if(!mAWSBusy.get())
-                startNewTransmission();
+            startNewTransmission();
         }
     }
 

@@ -159,7 +159,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
      */
     @Override
     public void onBackPressed() {
-        Log.d(TAG, "Back button pressed");
+        Log.d(TAG, "Back button pressed, send note to List Activity");
         controlledFinish();
         finish();
     }
@@ -183,7 +183,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     protected void onStop() {
         super.onStop();
         if(!mControlledFinish) {
-            Log.d(TAG, "Activity stopped, save changes");
+            Log.d(TAG, "Activity switched out, save changes");
             NoteManager.saveChanges(mPosition, mTitle, mContent, mLatitude, mLongitude);
         }
     }

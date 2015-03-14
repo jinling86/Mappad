@@ -19,4 +19,17 @@ public class NoteIndex implements Serializable {
     public Boolean mSynchronized;
     public Boolean mModified;
     public Boolean mDeleted;
+
+    private static int DATE_LENGTH = 13;
+
+    public static Long getTimeFromName(String filename) throws NoSuchFieldException {
+        if(!filename.startsWith(NoteManager.NOTE_PREFIX)
+            || !filename.endsWith(NoteManager.NOTE_SUFFIX)
+            || filename.length() != NoteManager.NOTE_PREFIX.length() + DATE_LENGTH + NoteManager.NOTE_SUFFIX.length()) {
+            throw new NoSuchFieldException("Failed to parse filename " + filename);
+        } else {
+            String createdTimeString = filename.substring(NoteManager.NOTE_PREFIX.length(), NoteManager.NOTE_PREFIX.length()+DATE_LENGTH);
+            return Long.getLong(createdTimeString);
+        }
+    }
 }

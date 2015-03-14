@@ -12,9 +12,16 @@ import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.BasicAWSCredentials;
 import com.amazonaws.services.s3.AmazonS3Client;
 import com.amazonaws.services.s3.model.GetObjectRequest;
+import com.amazonaws.services.s3.model.ListObjectsRequest;
+import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
 
 import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.ObjectOutputStream;
+import java.util.ArrayList;
 
 /**
  * This class is implemented for CSI5175 Assignment 2.
@@ -93,6 +100,9 @@ public class AWSService extends IntentService {
             } else if (intent.getAction().equals(AWSManager.INTENT_DELETE) &&
                     intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME) != null) {
                 delete(intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME));
+            } else if (intent.getAction().equals(AWSManager.INTENT_LIST) &&
+                    intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME) != null) {
+                list(intent.getStringExtra(AWSManager.EXTRA_INTERNAL_FILENAME));
             }
         }
     }
@@ -109,16 +119,13 @@ public class AWSService extends IntentService {
             Log.d(TAG, "Download successfully");
             sendResult(AWSManager.AWS_DOWNLOADED, file_name);
         } catch ( AmazonServiceException ase ) {
-            Log.d(TAG, "Caught an AmazonServiceException:");
+            Log.d(TAG, "Caught an AmazonServiceException during downloading:");
             Log.d(TAG, "Error Message: " + ase.getMessage()
                     + "HTTP Status Code: " + ase.getStatusCode()
                     + "Error Type: " + ase.getErrorType());
-            if(ase.getStatusCode() == 404)
-                sendResult(AWSManager.AWS_DOWNLOAD_NO_FILE, file_name);
-            else
-                sendResult(AWSManager.AWS_DOWNLOAD_FAILED, file_name);
+            sendResult(AWSManager.AWS_DOWNLOAD_FAILED, file_name);
         } catch ( AmazonClientException ace ) {
-            Log.d(TAG, "Caught an AmazonClientException:");
+            Log.d(TAG, "Caught an AmazonClientException during downloading:");
             Log.d(TAG, "Error Message: " + ace.getMessage());
             sendResult(AWSManager.AWS_DOWNLOAD_FAILED, file_name);
         }
@@ -136,13 +143,13 @@ public class AWSService extends IntentService {
             Log.d(TAG, "Upload successfully " + file_name);
             sendResult(AWSManager.AWS_UPLOADED, file_name);
         } catch ( AmazonServiceException ase ) {
-            Log.d(TAG, "Caught an AmazonServiceException:");
+            Log.d(TAG, "Caught an AmazonServiceException during uploading:");
             Log.d(TAG, "Error Message: " + ase.getMessage()
                     + "HTTP Status Code: " + ase.getStatusCode()
                     + "Error Type: " + ase.getErrorType());
             sendResult(AWSManager.AWS_UPLOAD_FAILED, file_name);
         } catch ( AmazonClientException ace ) {
-            Log.d(TAG, "Caught an AmazonClientException:");
+            Log.d(TAG, "Caught an AmazonClientException during uploading:");
             Log.d(TAG, "Error Message: " + ace.getMessage());
             sendResult(AWSManager.AWS_UPLOAD_FAILED, file_name);
         }
@@ -159,15 +166,55 @@ public class AWSService extends IntentService {
             sendResult(AWSManager.AWS_DELETED, file_name);
             Log.d(TAG, "Delete successfully" + file_name);
         } catch ( AmazonServiceException ase ) {
-            Log.d(TAG, "Caught an AmazonServiceException:");
+            Log.d(TAG, "Caught an AmazonServiceException during deleting:");
             Log.d(TAG, "Error Message: " + ase.getMessage()
                     + "HTTP Status Code: " + ase.getStatusCode()
                     + "Error Type: " + ase.getErrorType());
             sendResult(AWSManager.AWS_DELETE_FAILED, file_name);
         } catch ( AmazonClientException ace ) {
-            Log.d(TAG, "Caught an AmazonClientException:");
+            Log.d(TAG, "Caught an AmazonClientException during deleting:");
             Log.d(TAG, "Error Message: " + ace.getMessage());
             sendResult(AWSManager.AWS_DELETE_FAILED, file_name);
+        }
+    }
+
+    private void list(String file_name) {
+        if(mNetworkInfo == null || !mNetworkInfo.isConnectedOrConnecting()) {
+            sendResult(AWSManager.AWS_DELETE_FAILED, file_name);
+            Log.d(TAG, "No connection while deleting");
+            return;
+        }
+        try {
+            ArrayList<NoteIndex> noteIndex = new ArrayList<NoteIndex> ();
+            ObjectListing objectListing = mS3Client.listObjects(new ListObjectsRequest().withBucketName(BUCKET_NAME));
+            for (S3ObjectSummary objectSummary : objectListing.getObjectSummaries()) {
+                NoteIndex anIndex = new NoteIndex();
+                anIndex.mFileName = objectSummary.getKey();
+                anIndex.mCreatedTime = NoteIndex.getTimeFromName(anIndex.mFileName);
+                anIndex.mModifiedTime = objectSummary.getLastModified().getTime();
+                anIndex.mModified = false;
+                anIndex.mDeleted = false;
+                anIndex.mSynchronized = true;
+                noteIndex.add(anIndex);
+            }
+            ObjectOutputStream i_oos = new ObjectOutputStream(new FileOutputStream(NoteManager.getTmpFullName(file_name)));
+            i_oos.writeObject(noteIndex);
+            i_oos.close();
+            Log.d(TAG, "Note index created");
+            sendResult(AWSManager.AWS_LISTED, file_name);
+        } catch ( AmazonServiceException ase ) {
+            Log.d(TAG, "Caught an AmazonServiceException during reading list:");
+            Log.d(TAG, "Error Message: " + ase.getMessage()
+                    + "HTTP Status Code: " + ase.getStatusCode()
+                    + "Error Type: " + ase.getErrorType());
+            sendResult(AWSManager.AWS_LIST_FAILED, file_name);
+        } catch ( AmazonClientException ace ) {
+            Log.d(TAG, "Caught an AmazonClientException:");
+            Log.d(TAG, "Error Message: " + ace.getMessage());
+            sendResult(AWSManager.AWS_LIST_FAILED, file_name);
+        } catch( IOException | NoSuchFieldException e ) {
+            e.printStackTrace();
+            Log.d(TAG, "Note index creation failed!");
         }
     }
 
