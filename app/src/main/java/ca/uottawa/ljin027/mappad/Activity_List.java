@@ -68,9 +68,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The URL of the notepad example (the SQLite DB is abandoned):
  * http://developer.android.com/training/notepad/index.html
  *
- * @author      Ling Jin
+ * @author      Ling Jin and Xi Song
  * @version     1.0
- * @since       04/03/2015
+ * @since       04/03/2015, LJ
  */
 public class Activity_List extends ActionBarActivity {
     /**

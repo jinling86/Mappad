@@ -20,9 +20,9 @@ import java.io.PrintWriter;
  * is newer, so will be kept. This field can also be discarded by implementing a more powerful
  * internal note index processing method, which do not need to read modification time from note.
  *
- * @author      Ling Jin
+ * @author      Ling Jin and Xi Song
  * @version     1.0
- * @since       05/03/2015
+ * @since       05/03/2015, LJ
  */
 public class NoteItem {
     /**

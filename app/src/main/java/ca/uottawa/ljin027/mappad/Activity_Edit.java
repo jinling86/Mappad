@@ -40,9 +40,9 @@ import com.google.android.gms.maps.model.MarkerOptions;
  * This is the URL of Android activity life circle:
  * http://developer.android.com/training/basics/activity-lifecycle/starting.html
  *
- * @author      Ling Jin
+ * @author      Ling Jin and Xi Song
  * @version     1.0
- * @since       04/03/2015
+ * @since       04/03/2015, LJ
  */
 public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallback {
     /**

@@ -35,9 +35,9 @@ import com.google.android.gms.maps.model.MarkerOptions;
  * Examples: https://developers.google.com/maps/documentation/android/
  * Examples: https://developer.android.com/google/auth/api-client.html
  *
- * @author      Ling Jin
+ * @author      Ling Jin and Xi Song
  * @version     1.0
- * @since       06/03/2015
+ * @since       06/03/2015, LJ
  */
 public class Activity_Map extends ActionBarActivity implements OnMapReadyCallback {
 

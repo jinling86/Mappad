@@ -40,9 +40,9 @@ import java.util.ArrayList;
  * An example of using AWS S3 Service for developing Android: https://github.com/awslabs/aws-sdk-android-samples
  * The latter example uses the IntentService class, but is more complicated.
  *
- * @author      Ling Jin
+ * @author      Ling Jin and Xi Song
  * @version     1.0
- * @since       05/03/2015
+ * @since       05/03/2015, LJ
  */
 public class AWSService extends IntentService {
     /**

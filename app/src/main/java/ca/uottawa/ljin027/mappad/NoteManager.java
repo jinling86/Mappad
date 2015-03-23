@@ -33,9 +33,9 @@ import java.util.Date;
  *          - If a note is marked "deleted" or being deleted, then deletes it.
  * The name of a note file consists of "note_", creation time string and ".txt".
  *
- * @author      Ling Jin
+ * @author      Ling Jin and Xi Song
  * @version     1.0
- * @since       05/03/2015
+ * @since       05/03/2015, LJ
  */
 public class NoteManager {
     /**

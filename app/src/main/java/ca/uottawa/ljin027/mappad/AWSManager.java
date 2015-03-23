@@ -13,9 +13,9 @@ import android.util.Log;
  * This class defines the name of Android Intents and Bundle Extras.
  * This class defines shortcut methods for using the AWSService.
  *
- * @author      Ling Jin
+ * @author      Ling Jin and Xi Song
  * @version     1.0
- * @since       05/03/2015
+ * @since       05/03/2015, LJ
  */
 public class AWSManager {
     /**

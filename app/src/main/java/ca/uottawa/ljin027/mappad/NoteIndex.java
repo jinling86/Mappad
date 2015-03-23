@@ -15,9 +15,9 @@ import java.io.Serializable;
  * This class implements the Serializable interface so as to easily save it by Object read/write
  * stream.
  *
- * @author      Ling Jin
+ * @author      Ling Jin and Xi Song
  * @version     1.0
- * @since       11/03/2015
+ * @since       11/03/2015, LJ
  */
 public class NoteIndex implements Serializable {
     /**
