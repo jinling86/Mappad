@@ -13,7 +13,9 @@ import java.io.Serializable;
  *      Deleted:        Indicates whether the file is deleted but the operation has not been
  *                      synchronized to AWS S3 Server
  * This class implements the Serializable interface so as to easily save it by Object read/write
- * stream.
+ * stream. There exists a problem in this code: the created time cannot be correctly calculated
+ * unless the time zone of the cell phone is as same as the cell phone by which the files is
+ * created. We consider it is not a big issue.
  *
  * @author      Ling Jin and Xi Song
  * @version     1.0
