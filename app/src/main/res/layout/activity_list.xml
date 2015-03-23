@@ -31,7 +31,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:text="Problems please go away"
+                android:text="@string/list_no_gps"
                 android:id="@+id/textView_GoogleHint"
                 android:textColor="@color/black"
                 android:textSize="16sp"
@@ -45,7 +45,7 @@
     <Button
         android:layout_width="200dp"
         android:layout_height="wrap_content"
-        android:text="Cancel"
+        android:text="@string/list_cancel_delete"
         android:id="@+id/button_CancelDeletion"
         android:layout_gravity="center_horizontal"
         android:layout_above="@+id/button_ConfirmDeletion"
@@ -55,7 +55,7 @@
     <Button
         android:layout_width="200dp"
         android:layout_height="wrap_content"
-        android:text="Delete !"
+        android:text="@string/list_confirm_delete"
         android:id="@+id/button_ConfirmDeletion"
         android:layout_gravity="center_horizontal"
         android:layout_alignParentBottom="true"
@@ -65,7 +65,7 @@
     <Button
         android:layout_width="200dp"
         android:layout_height="wrap_content"
-        android:text="Show Maps"
+        android:text="@string/list_view_maps"
         android:id="@+id/button_ShowMap"
         android:layout_gravity="center_horizontal"
         android:layout_alignParentBottom="true"
