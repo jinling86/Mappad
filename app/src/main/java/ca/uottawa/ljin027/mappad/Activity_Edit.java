@@ -48,7 +48,7 @@ public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallba
     /**
      * Debugging String constant
      */
-    private final String TAG = "<<<<< Activity Edit >>>>>";
+    private final String TAG = "<<< Activity Edit >>>";
 
     /**
      * Views references

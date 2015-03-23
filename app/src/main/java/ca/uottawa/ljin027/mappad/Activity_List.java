@@ -113,7 +113,7 @@ public class Activity_List extends ActionBarActivity {
     /**
      * Debugging
      */
-    private final String TAG = "<<<<< Activity List >>>>>";
+    private final String TAG = "<<< Activity List >>>";
     /**
      * Synchronization file name lists
      */

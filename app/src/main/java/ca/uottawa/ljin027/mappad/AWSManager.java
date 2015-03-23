@@ -47,7 +47,7 @@ public class AWSManager {
     /**
      * String constant for debugging
      */
-    private static String TAG = "<<<<< AWS Manager >>>>>";
+    private static String TAG = "<<< AWS Manager >>>";
 
     /**
      * Initializes the context for sending Intent, called by the main activity (List Activity)

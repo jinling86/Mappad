@@ -56,7 +56,7 @@ public class AWSService extends IntentService {
     /**
      * String constant for debugging
      */
-    private static final String TAG = "<<<<< AWS Service >>>>>";
+    private static final String TAG = "<<< AWS Service >>>";
 
     /**
      * Reference of AWS S3 client and network connection indicator

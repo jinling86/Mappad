@@ -54,7 +54,7 @@ public class Activity_Map extends ActionBarActivity implements OnMapReadyCallbac
     /**
      * A tag for debug printing
      */
-    private final String TAG = "<<<<< Activity Map >>>>>";
+    private final String TAG = "<<< Activity Map >>>";
 
     /**
      * Notes read from internal file

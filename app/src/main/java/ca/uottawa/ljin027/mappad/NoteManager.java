@@ -69,7 +69,7 @@ public class NoteManager {
     public static String NOTE_PREFIX = "note_";
     public static String NOTE_SUFFIX = ".txt";
     public static String EXT_FILE_DIR = null;
-    private static String TAG = "<<<<< Note Manager >>>>>";
+    private static String TAG = "<<< Note Manager >>>";
 
     /**
      * Format of the created/modified time string.
