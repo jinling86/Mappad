@@ -14,7 +14,7 @@
         android:layout_margin="8dp"
         android:singleLine="true"
         android:hint="@string/edit_label_hint"
-        android:maxLength="24"
+        android:maxLength="30"
         android:background="@color/title"
         android:textColor="@color/black"
         android:textSize="24sp"
