@@ -8,14 +8,13 @@ import android.os.SystemClock;
 import android.util.Log;
 
 /**
- * This class is implemented for CSI5175 Assignment 2.
  * This class provides interface between AWS S3 Manager and the List Activity.
  * This class defines the name of Android Intents and Bundle Extras.
  * This class defines shortcut methods for using the AWSService.
  *
- * @author      Ling Jin and Xi Song
+ * @author      Ling Jin
  * @version     1.0
- * @since       05/03/2015, LJ
+ * @since       05/03/2015
  */
 public class AWSManager {
     /**

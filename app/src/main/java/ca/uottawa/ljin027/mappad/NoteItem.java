@@ -8,7 +8,6 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 
 /**
- * This class is implement for CSI5175 Assignment 2.
  * This class defines the items of the notes.
  * A note consists of a title/label, a content and the location information provided by the author.
  * The content field is invisible in the user interface, it remains in the code so that we have
@@ -20,9 +19,9 @@ import java.io.PrintWriter;
  * is newer, so will be kept. This field can also be discarded by implementing a more powerful
  * internal note index processing method, which do not need to read modification time from note.
  *
- * @author      Ling Jin and Xi Song
+ * @author      Ling Jin
  * @version     1.0
- * @since       05/03/2015, LJ
+ * @since       05/03/2015
  */
 public class NoteItem {
     /**

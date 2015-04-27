@@ -3,7 +3,6 @@ package ca.uottawa.ljin027.mappad;
 import java.io.Serializable;
 
 /**
- * This class is implement for CSI5175 Assignment 2.
  * This class defines the index that is used to track the states of the notes:
  *      File name:      Note file name, both in phone and on AWS S3 Server
  *      Created time:   The unique identifier of the file
@@ -17,9 +16,9 @@ import java.io.Serializable;
  * unless the time zone of the cell phone is as same as the cell phone by which the files is
  * created. We consider it is not a big issue.
  *
- * @author      Ling Jin and Xi Song
+ * @author      Ling Jin
  * @version     1.0
- * @since       11/03/2015, LJ
+ * @since       11/03/2015
  */
 public class NoteIndex implements Serializable {
     /**

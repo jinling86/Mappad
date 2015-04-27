@@ -24,13 +24,11 @@ import java.io.ObjectOutputStream;
 import java.util.ArrayList;
 
 /**
- * This class is implemented for CSI5175 Assignment 2.
+
  * This class implements an Android Service that manages the communication with Amazon Web Services
  * Simple Storage Service service. The service runs in the background of the applications. The
  * server cannot be communicated directed in Activity unless use an AsyncTask. All the
  * communication is triggered and responded using Intents.
- *
- * PLEASE KEY THE ACCESS KEY AND SECRET ACCESS KEY SAFE!
  *
  * Here is some how-to documents:
  * SDK Set-up: http://docs.aws.amazon.com/mobile/sdkforandroid/developerguide/setup.html
@@ -40,9 +38,9 @@ import java.util.ArrayList;
  * An example of using AWS S3 Service for developing Android: https://github.com/awslabs/aws-sdk-android-samples
  * The latter example uses the IntentService class, but is more complicated.
  *
- * @author      Ling Jin and Xi Song
+ * @author      Ling Jin
  * @version     1.0
- * @since       05/03/2015, LJ
+ * @since       05/03/2015
  */
 public class AWSService extends IntentService {
     /**
@@ -50,8 +48,8 @@ public class AWSService extends IntentService {
      * share the same configuration. This can be improved by introduing AWS Cognito.
      */
     private static final String BUCKET_NAME = "ca.uottawa.ljin027.mappad";
-    private static final String ACCESS_KEY = "AKIAJWAGGRMXROXFWDEQ";
-    private static final String SECRET_ACCESS_KEY = "EATdaQkIEqgB05pfSMkraV4j/dDkExen626S1d3z";
+    private static final String ACCESS_KEY = "USE_YOUR_OWN_KEY";
+    private static final String SECRET_ACCESS_KEY = "USE_YOUR_OWN_KEY";
 
     /**
      * String constant for debugging

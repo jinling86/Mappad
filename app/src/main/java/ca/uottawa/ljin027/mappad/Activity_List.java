@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * This class is implemented for CSI5175 Assignment 2
  * This class displays the note list to user. It supports a set of notes operations, which are
  * adding new note by clicking add button, modifying existing note by clicking the list item,
  * deleting a single note item when long touching the item, deleting mass notes by clicking the
@@ -68,9 +67,9 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * The URL of the notepad example (the SQLite DB is abandoned):
  * http://developer.android.com/training/notepad/index.html
  *
- * @author      Ling Jin and Xi Song
+ * @author      Ling Jin
  * @version     1.0
- * @since       04/03/2015, LJ
+ * @since       04/03/2015
  */
 public class Activity_List extends ActionBarActivity {
     /**

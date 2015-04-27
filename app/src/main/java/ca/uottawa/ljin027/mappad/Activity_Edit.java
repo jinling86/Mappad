@@ -28,7 +28,6 @@ import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
 /**
- * This class is implemented for CSI5175 Assignment 2.
  * User uses this activity to edit note. The title is typed in and the location is selected by
  * clicking a button. When being clicked, the current location of the marker in the Google Maps
  * Fragment will be read. The modified contents are sent back to the List Activity when user click
@@ -40,9 +39,9 @@ import com.google.android.gms.maps.model.MarkerOptions;
  * This is the URL of Android activity life circle:
  * http://developer.android.com/training/basics/activity-lifecycle/starting.html
  *
- * @author      Ling Jin and Xi Song
+ * @author      Ling Jin
  * @version     1.0
- * @since       04/03/2015, LJ
+ * @since       04/03/2015
  */
 public class Activity_Edit extends ActionBarActivity implements OnMapReadyCallback {
     /**
