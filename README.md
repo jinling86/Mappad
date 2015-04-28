@@ -1,9 +1,8 @@
 # Auto-synchronized Map Locations Notepad
 
-CSI 5175 Assignment 2, University of Ottawa
-
 Ling Jin
 March 24, 2015
+University of Ottawa
 
 # Introduction
 
