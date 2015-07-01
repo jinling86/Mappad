@@ -10,7 +10,7 @@ This APP uses AWS Simple Storage Service (S3) to store notes which contain locat
 
 A lot of the code deal with the synchronization of the notebook between the cell phone and AWS S3 server. It tries hard to delete, upload and download so as to keep the note files up-to-date. Some special situations, e.g. file creation and deletion during cell phone off-line, have been considered. It is a somehow stable APP that you can play with.
 
-A note is separately saved in text format as required by our instructor. I think using only one file is more reasonable and may make life easy... ( I can fill an entire paper with my complains :)
+A note is separately saved in text format as required by our instructor. I think using only one file may make life easy. After all, the whole APP only worths 5 final marks... ( I can fill an entire paper with my complains :)
 
 # Screenshots
 ![alt text](https://github.com/ljin027/Mappad/blob/master/app/src/main/res/drawable/ScreenShot.png)
